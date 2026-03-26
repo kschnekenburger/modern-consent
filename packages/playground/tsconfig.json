@@ -12,7 +12,8 @@
     "noUncheckedSideEffectImports": true,
     "paths": {
       "@modernconsent/core": ["../core/src/index.ts"],
-      "@modernconsent/widget": ["../widget/src/index.ts"]
+      "@modernconsent/widget": ["../widget/src/index.ts"],
+      "@modernconsent/vendors": ["../vendors/src/index.ts"]
     }
   },
   "include": ["src", "vite.config.ts"]
