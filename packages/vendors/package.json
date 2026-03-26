@@ -45,12 +45,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/modernconsent/modernconsent",
+    "url": "https://github.com/kschnekenburger/modern-consent",
     "directory": "packages/vendors"
   },
-  "homepage": "https://github.com/modernconsent/modernconsent#readme",
+  "homepage": "https://github.com/kschnekenburger/modern-consent#readme",
   "bugs": {
-    "url": "https://github.com/modernconsent/modernconsent/issues"
+    "url": "https://github.com/kschnekenburger/modern-consent/issues"
   },
   "engines": {
     "node": ">=18"

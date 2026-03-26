@@ -8,11 +8,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/modernconsent/modernconsent"
+    "url": "https://github.com/kschnekenburger/modern-consent"
   },
-  "homepage": "https://github.com/modernconsent/modernconsent#readme",
+  "homepage": "https://github.com/kschnekenburger/modern-consent#readme",
   "bugs": {
-    "url": "https://github.com/modernconsent/modernconsent/issues"
+    "url": "https://github.com/kschnekenburger/modern-consent/issues"
   },
   "packageManager": "pnpm@10.9.0",
   "engines": {
