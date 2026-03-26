@@ -1,0 +1,44 @@
+{
+  "name": "@modernconsent/widget",
+  "version": "0.0.1",
+  "description": "Web Component cookie consent widget",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "sideEffects": true,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modernconsent/core": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "license": "MIT",
+  "author": "ModernConsent Contributors",
+  "keywords": ["consent", "gdpr", "rgpd", "cookie", "web-component", "cmp"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/modernconsent/modernconsent",
+    "directory": "packages/widget"
+  },
+  "homepage": "https://github.com/modernconsent/modernconsent#readme",
+  "bugs": {
+    "url": "https://github.com/modernconsent/modernconsent/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

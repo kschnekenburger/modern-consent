@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>consent-widget — dev</title>
+    <script>
+        window.mcLayer = window.mcLayer || [];
+        window.modernConsent = function modernConsent() { window.mcLayer.push(arguments) }
+        window.modernConsent('config', {
+            cookieName: 'modern_consent',
+            consentMode: true,
+            consentOnly: true,
+            // displayMode: 'purpose',
+            functionalPurpose: true,
+        })
+
+        setTimeout(() => {
+            window.modernConsent('vendor', {
+                name: 'googleads',
+                config: {
+                    tagId: 'AW-XXXXXXXXX',
+                }
+            });
+
+            window.modernConsent('vendor', {
+                name: 'google-analytics',
+                config: {
+                    measurementId: 'G-XXXXXXXXXX',
+                }
+            });
+
+            window.modernConsent('vendor', {
+                name: 'my-analytics',
+                label: 'My Analytics',
+                description: 'Our in-house analytics tool.',
+                category: 'Analytics',
+                requireConsent: false,
+                artifacts: ['_ma_id', '_ma_session'],
+                init(config) {
+                    console.log('Approuved !')
+                },
+            });
+
+        }, 1500)
+    </script>
+</head>
+<body>
+<script type="module" src="/src/main.ts"></script>
+
+<mc-consent-widget lang="fr" style="--mc-primary: #1B6EF7">
+    <span slot="title">Le respect de votre vie privée est notre priorité</span>
+    <span slot="body">Hyperassur utilise des cookies.<br>
+Afin de personnaliser votre expérience utilisateur et d’établir des statistiques.<br>
+Mais aussi afin d’améliorer les performances de nos services et de personnaliser des annonces.<br>
+Pour profiter pleinement de toutes les fonctionnalités du Site, nous vous recommandons d'accepter tous les cookies.<br>
+<br>
+Votre choix sera conservé pendant 12 mois maximum et modifiable à tout moment depuis le lien « politique des cookies »<br>
+Pour personnaliser votre expérience, vous pouvez définir vos préférences au sein des paramètres.
+    </span>
+</mc-consent-widget>
+
+<span onclick="window.modernConsent.openPanel()" style="cursor: pointer; color: blue; text-decoration: underline">
+    Modifier mes préférences
+</span>
+
+</body>
+</html>

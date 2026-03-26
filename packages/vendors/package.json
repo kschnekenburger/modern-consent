@@ -1,0 +1,48 @@
+{
+  "name": "@modernconsent/vendors",
+  "version": "0.0.1",
+  "description": "Built-in vendor implementations for ModernConsent",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@modernconsent/core": ">=0.0.1"
+  },
+  "devDependencies": {
+    "@modernconsent/core": "workspace:*",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "license": "MIT",
+  "author": "ModernConsent Contributors",
+  "keywords": ["consent", "gdpr", "rgpd", "cookie", "vendor", "google-analytics", "meta-pixel"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/modernconsent/modernconsent",
+    "directory": "packages/vendors"
+  },
+  "homepage": "https://github.com/modernconsent/modernconsent#readme",
+  "bugs": {
+    "url": "https://github.com/modernconsent/modernconsent/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

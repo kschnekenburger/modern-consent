@@ -1,0 +1,22 @@
+{
+  "name": "@modernconsent/playground",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test:cdn": "bash cdn-test/serve.sh"
+  },
+  "dependencies": {
+    "@modernconsent/core": "workspace:*",
+    "@modernconsent/vendors": "workspace:*",
+    "@modernconsent/widget": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vite": "^7.0.0"
+  }
+}
