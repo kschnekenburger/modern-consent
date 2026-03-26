@@ -9,7 +9,7 @@ type ABTastyConfig = {
 const ABTasty: Vendor<ABTastyConfig> = {
   name: 'AB Tasty',
   category: 'Analytics',
-  description: 'A/B testing, feature flagging et personnalisation de l\'expérience utilisateur.',
+  description: "A/B testing, feature flagging et personnalisation de l'expérience utilisateur.",
   ...PURPOSE_ANALYTICS,
   requireConsent: true,
   artifacts: ['ABTasty', 'ABTastySession'],

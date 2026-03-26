@@ -46,9 +46,7 @@ function escapeCookieName(name: string): string {
 
 const getCookie = (name: string): string | null => {
   if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(
-    new RegExp(`(?:^|; )${escapeCookieName(name)}=([^;]*)`),
-  );
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escapeCookieName(name)}=([^;]*)`));
   return match ? decodeURIComponent(match[1]) : null;
 };
 
@@ -71,8 +69,8 @@ const setCookie = (name: string, value: string, options: CookieOptions = {}) => 
     if (hostname && !hostname.endsWith(domain.replace(/^\./, ''))) {
       console.warn(
         `[modern-consent] cookieDomain "${domain}" does not match current hostname "${hostname}". ` +
-        `The cookie will be silently rejected by the browser. ` +
-        `Remove cookieDomain for local development.`,
+          `The cookie will be silently rejected by the browser. ` +
+          `Remove cookieDomain for local development.`,
       );
     }
     cookieString += `;domain=${domain}`;

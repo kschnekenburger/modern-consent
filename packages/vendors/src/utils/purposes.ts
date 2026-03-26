@@ -42,7 +42,7 @@ export const PURPOSE_SOCIAL = {
     en: 'Social media',
   },
   purposeDescription: {
-    fr: 'Ces cookies permettent de partager du contenu sur les réseaux sociaux et d\'interagir avec des plateformes tierces.',
+    fr: "Ces cookies permettent de partager du contenu sur les réseaux sociaux et d'interagir avec des plateformes tierces.",
     en: 'These cookies allow sharing content on social media and interacting with third-party platforms.',
   },
 } as const;

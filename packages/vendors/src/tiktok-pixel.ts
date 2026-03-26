@@ -24,10 +24,26 @@ const TikTokPixel: Vendor<TikTokConfig> = {
 
     (function (w: any, d: Document, t: string) {
       w.TiktokAnalyticsObject = t;
-      const ttq = w[t] = w[t] || [];
-      ttq.methods = ['page', 'track', 'identify', 'instances', 'debug', 'on', 'off', 'once', 'ready', 'alias', 'group', 'enableCookie', 'disableCookie'];
+      const ttq = (w[t] = w[t] || []);
+      ttq.methods = [
+        'page',
+        'track',
+        'identify',
+        'instances',
+        'debug',
+        'on',
+        'off',
+        'once',
+        'ready',
+        'alias',
+        'group',
+        'enableCookie',
+        'disableCookie',
+      ];
       ttq.setAndDefer = function (t: any, e: string) {
-        t[e] = function (...args: any[]) { t.push([e, ...args]); };
+        t[e] = function (...args: any[]) {
+          t.push([e, ...args]);
+        };
       };
       for (let i = 0; i < ttq.methods.length; i++) {
         ttq.setAndDefer(ttq, ttq.methods[i]);

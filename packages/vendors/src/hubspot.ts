@@ -12,10 +12,20 @@ const HubSpot: Vendor<HubSpotConfig> = {
   description: 'Suivi marketing, formulaires et analytics HubSpot.',
   ...PURPOSE_ANALYTICS,
   requireConsent: true,
-  artifacts: ['__hssc', '__hssrc', '__hstc', 'hubspotutk', '__hs_opt_out', '__hs_do_not_track', '__hs_initial_opt_in'],
+  artifacts: [
+    '__hssc',
+    '__hssrc',
+    '__hstc',
+    'hubspotutk',
+    '__hs_opt_out',
+    '__hs_do_not_track',
+    '__hs_initial_opt_in',
+  ],
   init: (config: HubSpotConfig) => {
     if (!config?.portalId) return;
-    loadScript(`https://js.hs-scripts.com/${config.portalId}.js`, undefined, { id: 'hs-script-loader' });
+    loadScript(`https://js.hs-scripts.com/${config.portalId}.js`, undefined, {
+      id: 'hs-script-loader',
+    });
   },
 };
 

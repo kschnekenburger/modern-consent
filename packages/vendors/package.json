@@ -16,7 +16,9 @@
       "import": "./dist/*.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
@@ -32,7 +34,15 @@
   },
   "license": "MIT",
   "author": "ModernConsent Contributors",
-  "keywords": ["consent", "gdpr", "rgpd", "cookie", "vendor", "google-analytics", "meta-pixel"],
+  "keywords": [
+    "consent",
+    "gdpr",
+    "rgpd",
+    "cookie",
+    "vendor",
+    "google-analytics",
+    "meta-pixel"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/modernconsent/modernconsent",

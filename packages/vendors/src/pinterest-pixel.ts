@@ -23,9 +23,9 @@ const PinterestPixel: Vendor<PinterestConfig> = {
     if (!config?.tagId) return;
 
     if (!window.pintrk) {
-      const pintrk: any = window.pintrk = function (...args: any[]) {
+      const pintrk: any = (window.pintrk = function (...args: any[]) {
         pintrk.queue.push(args);
-      };
+      });
       pintrk.queue = [];
       pintrk.version = '3.0';
 

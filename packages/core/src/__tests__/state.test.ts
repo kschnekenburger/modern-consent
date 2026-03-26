@@ -7,10 +7,10 @@ describe('State & Cookies', () => {
     consentState.set({});
     hasAnswered.set(false);
     // Clear cookies
-    document.cookie.split(";").forEach((c) => {
+    document.cookie.split(';').forEach(c => {
       document.cookie = c
-        .replace(/^ +/, "")
-        .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        .replace(/^ +/, '')
+        .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
     });
   });
 
@@ -23,7 +23,7 @@ describe('State & Cookies', () => {
   it('should load state from cookie', () => {
     const mockState = {
       consent: { ga: true },
-      answered: true
+      answered: true,
     };
     document.cookie = `mc_consent_state=${encodeURIComponent(JSON.stringify(mockState))};path=/`;
 
@@ -34,7 +34,7 @@ describe('State & Cookies', () => {
 
   it('should save to cookie when state changes', () => {
     initState({ cookieName: 'custom_cookie' });
-    
+
     consentState.set({ ga: true });
     hasAnswered.set(true);
 

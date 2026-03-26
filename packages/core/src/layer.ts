@@ -55,12 +55,15 @@ export interface McConfig {
    *   Publicité: { label: "Ciblage Marketing" },
    * }
    */
-  purposes?: Record<string, {
-    /** Human-readable label displayed as the purpose title. */
-    label: string;
-    /** Optional description shown below the purpose title. */
-    description?: string;
-  }>;
+  purposes?: Record<
+    string,
+    {
+      /** Human-readable label displayed as the purpose title. */
+      label: string;
+      /** Optional description shown below the purpose title. */
+      description?: string;
+    }
+  >;
   /**
    * When true, displays a "Functional / Site operation" mandatory purpose block
    * at the top of the details panel. This is a visual-only block with no toggle —
@@ -149,7 +152,7 @@ function handleVendor(event: McVendor) {
     if (!resolved) {
       console.warn(
         `[modern-consent] Unknown vendor "${name}". ` +
-        `Provide an init() function to define a custom vendor.`,
+          `Provide an init() function to define a custom vendor.`,
       );
       return;
     }
@@ -172,13 +175,13 @@ export function initMcLayer() {
 
   // CDN resolver — lowest priority (registered first = LIFO lowest).
   // Returns a loader for any name; cdnBase is checked lazily at activation time.
-  addResolver((_name) => {
+  addResolver(_name => {
     return async () => {
       const cdnBase = w._modernConsentConfig?.cdnBase;
       if (!cdnBase) {
         throw new Error(
           `[modern-consent] Vendor "${_name}" not found. ` +
-          `Configure cdnBase to enable CDN loading, or provide an inline init().`,
+            `Configure cdnBase to enable CDN loading, or provide an inline init().`,
         );
       }
       const url = `${cdnBase.replace(/\/$/, '')}/${_name}.js`;

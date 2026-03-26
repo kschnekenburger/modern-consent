@@ -19,33 +19,33 @@ import { addResolver } from '@modernconsent/core';
 const BUILTIN_LOADERS: Record<string, () => Promise<any>> = {
   // Analytics
   'google-analytics': () => import('./google-analytics'),
-  'matomo': () => import('./matomo'),
-  'clarity': () => import('./clarity'),
-  'hotjar': () => import('./hotjar'),
-  'hubspot': () => import('./hubspot'),
-  'amplitude': () => import('./amplitude'),
+  matomo: () => import('./matomo'),
+  clarity: () => import('./clarity'),
+  hotjar: () => import('./hotjar'),
+  hubspot: () => import('./hubspot'),
+  amplitude: () => import('./amplitude'),
   'piano-analytics': () => import('./piano-analytics'),
-  'posthog': () => import('./posthog'),
-  'sentry': () => import('./sentry'),
-  'abtasty': () => import('./abtasty'),
-  'gtm': () => import('./gtm'),
-  'segment': () => import('./segment'),
-  'plausible': () => import('./plausible'),
+  posthog: () => import('./posthog'),
+  sentry: () => import('./sentry'),
+  abtasty: () => import('./abtasty'),
+  gtm: () => import('./gtm'),
+  segment: () => import('./segment'),
+  plausible: () => import('./plausible'),
 
   // Advertising
-  'googleads': () => import('./googleads'),
-  'gcmads': () => import('./gcmads'),
+  googleads: () => import('./googleads'),
+  gcmads: () => import('./gcmads'),
   'meta-pixel': () => import('./meta-pixel'),
   'linkedin-insight': () => import('./linkedin-insight'),
   'tiktok-pixel': () => import('./tiktok-pixel'),
-  'criteo': () => import('./criteo'),
+  criteo: () => import('./criteo'),
   'pinterest-pixel': () => import('./pinterest-pixel'),
   'snapchat-pixel': () => import('./snapchat-pixel'),
   'reddit-pixel': () => import('./reddit-pixel'),
 
   // Support
-  'intercom': () => import('./intercom'),
-  'smartsupp': () => import('./smartsupp'),
+  intercom: () => import('./intercom'),
+  smartsupp: () => import('./smartsupp'),
 };
 
 /**
@@ -55,7 +55,7 @@ const BUILTIN_LOADERS: Record<string, () => Promise<any>> = {
  * @returns A cleanup function that removes the resolver.
  */
 export function useBuiltinVendors(): () => void {
-  return addResolver((name) => {
+  return addResolver(name => {
     const factory = BUILTIN_LOADERS[name];
     if (!factory) return undefined;
     return async () => {

@@ -23,10 +23,7 @@ const Criteo: Vendor<CriteoConfig> = {
     if (!config?.accountId) return;
 
     window.criteo_q = window.criteo_q || [];
-    window.criteo_q.push(
-      { event: 'setAccount', account: config.accountId },
-      { event: 'viewPage' },
-    );
+    window.criteo_q.push({ event: 'setAccount', account: config.accountId }, { event: 'viewPage' });
 
     loadScript('https://static.criteo.net/js/ld/ld.js', undefined, { async: 'true' });
   },

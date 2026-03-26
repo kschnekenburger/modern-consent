@@ -14,7 +14,7 @@ describe('Registry', () => {
 
   it('should resolve vendors via addResolver()', () => {
     const mockLoader = vi.fn();
-    addResolver((name) => name === 'google-analytics' ? mockLoader : undefined);
+    addResolver(name => (name === 'google-analytics' ? mockLoader : undefined));
 
     expect(resolveVendor('google-analytics')).toBeDefined();
     expect(resolveVendor('unknown')).toBeUndefined();
@@ -33,7 +33,7 @@ describe('Registry', () => {
       id: 'mock-id',
       category: 'Cat',
       loader,
-      config: {}
+      config: {},
     });
 
     // Wait for the promise in registerService to resolve
@@ -47,7 +47,7 @@ describe('Registry', () => {
     expect(list[0]).toMatchObject({
       id: 'mock-id',
       name: 'Mock Vendor',
-      category: 'Cat'
+      category: 'Cat',
     });
   });
 
@@ -58,7 +58,7 @@ describe('Registry', () => {
       description: 'Desc',
       category: 'Cat',
       requireConsent: true,
-      init: initSpy
+      init: initSpy,
     };
     const loader = vi.fn().mockResolvedValue({ default: mockVendor });
 
@@ -66,7 +66,7 @@ describe('Registry', () => {
       id: 'active-service',
       category: 'Cat',
       loader,
-      config: { api: '123' }
+      config: { api: '123' },
     });
 
     await vi.waitFor(() => servicesList.get().length > 0);
@@ -87,7 +87,7 @@ describe('Registry', () => {
       description: 'Desc',
       category: 'Cat',
       requireConsent: true,
-      init: initSpy
+      init: initSpy,
     };
     const loader = vi.fn().mockResolvedValue({ default: mockVendor });
 
@@ -95,7 +95,7 @@ describe('Registry', () => {
       id: 'soft-service',
       category: 'Cat',
       loader,
-      config: { key: 'abc' }
+      config: { key: 'abc' },
     });
 
     await vi.waitFor(() => servicesList.get().length > 0);

@@ -8,7 +8,7 @@ declare global {
   }
 }
 
-export type VendorConfig = unknown
+export type VendorConfig = unknown;
 
 export interface Vendor<TConfig = void> {
   name: string;
@@ -70,9 +70,7 @@ export function clearVendorArtifacts(id: string): void {
 
   const config = vendorsConfig.get(id);
   const cookieNames =
-    typeof vendor.artifacts === 'function'
-      ? vendor.artifacts(config)
-      : vendor.artifacts;
+    typeof vendor.artifacts === 'function' ? vendor.artifacts(config) : vendor.artifacts;
 
   const domain = window._modernConsentConfig?.cookieDomain;
 
@@ -96,60 +94,62 @@ export function registerService(args: {
   if (loaders.has(id)) return;
   loaders.set(id, loader);
 
-  loader().then((module: any) => {
-    const vendor: Vendor<any> = module.default || module;
-    loadedVendors.set(id, vendor);
-    if (config !== undefined) {
-      vendorsConfig.set(id, config);
-    }
+  loader()
+    .then((module: any) => {
+      const vendor: Vendor<any> = module.default || module;
+      loadedVendors.set(id, vendor);
+      if (config !== undefined) {
+        vendorsConfig.set(id, config);
+      }
 
-    if (vendor?.setup) {
-      vendor.setup(config);
-    }
+      if (vendor?.setup) {
+        vendor.setup(config);
+      }
 
-    if (vendor?.link && vendor.link.length > 0) {
-      vendor.link.forEach(link => {
-        if (
-          link.condition &&
-          !link.condition({ vendorConfig: config, consentConfig: window._modernConsentConfig })
-        ) {
-          return;
-        }
-        const linkedLoader = resolveVendor(link.vendor);
-        if (linkedLoader) {
-          registerService({
-            id: link.vendor,
-            category,
-            config: link.config ?? {},
-            loader: linkedLoader,
-          });
-        } else {
-          console.warn(`[modern-consent] Dependency "${link.vendor}" not found for "${id}"`);
-        }
+      if (vendor?.link && vendor.link.length > 0) {
+        vendor.link.forEach(link => {
+          if (
+            link.condition &&
+            !link.condition({ vendorConfig: config, consentConfig: window._modernConsentConfig })
+          ) {
+            return;
+          }
+          const linkedLoader = resolveVendor(link.vendor);
+          if (linkedLoader) {
+            registerService({
+              id: link.vendor,
+              category,
+              config: link.config ?? {},
+              loader: linkedLoader,
+            });
+          } else {
+            console.warn(`[modern-consent] Dependency "${link.vendor}" not found for "${id}"`);
+          }
+        });
+      }
+
+      servicesList.update(list => {
+        if (list.some(s => s.id === id)) return list;
+        return [
+          ...list,
+          {
+            id,
+            name: vendor.name,
+            description: vendor.description,
+            category: vendor.category,
+            purposeLabel: vendor.purposeLabel,
+            purposeDescription: vendor.purposeDescription,
+            loaded: false,
+            requireConsent: vendor.requireConsent,
+          },
+        ];
       });
-    }
 
-    servicesList.update(list => {
-      if (list.some(s => s.id === id)) return list;
-      return [
-        ...list,
-        {
-          id,
-          name: vendor.name,
-          description: vendor.description,
-          category: vendor.category,
-          purposeLabel: vendor.purposeLabel,
-          purposeDescription: vendor.purposeDescription,
-          loaded: false,
-          requireConsent: vendor.requireConsent,
-        },
-      ];
+      checkAutoActivation(id);
+    })
+    .catch(err => {
+      console.error(`[modern-consent] Failed to load vendor "${id}":`, err);
     });
-
-    checkAutoActivation(id);
-  }).catch(err => {
-    console.error(`[modern-consent] Failed to load vendor "${id}":`, err);
-  });
 }
 
 /**
@@ -171,7 +171,7 @@ function checkAutoActivation(id: string) {
     isPanelOpen.set(true);
   }
 
-  if (currentConsent[id] === true) {
+  if (currentConsent[id]) {
     activateService(id);
   }
 }
@@ -201,14 +201,16 @@ export async function activateService(id: string) {
 
   if (!isSoft && vendor.init && meta && !meta.loaded) {
     vendor.init(vendorsConfig.get(id));
-    servicesList.update(l =>
-      l.map(s => (s.id === id ? { ...s, loaded: true } : s)),
-    );
+    servicesList.update(l => l.map(s => (s.id === id ? { ...s, loaded: true } : s)));
 
     // Trigger onAccept events after successful activation
     vendor.event?.forEach(ev => {
       if (ev.name === 'onAccept') {
-        try { ev.callback(); } catch { /* don't let event errors break activation */ }
+        try {
+          ev.callback();
+        } catch {
+          /* don't let event errors break activation */
+        }
       }
     });
   }

@@ -32,9 +32,13 @@ const Intercom: Vendor<IntercomConfig> = {
         ic('update', w.intercomSettings);
       } else {
         const d = document;
-        const i: any = function (...args: any[]) { i.c(args); };
+        const i: any = function (...args: any[]) {
+          i.c(args);
+        };
         i.q = [];
-        i.c = function (args: any) { i.q.push(args); };
+        i.c = function (args: any) {
+          i.q.push(args);
+        };
         w.Intercom = i;
         const s = d.createElement('script') as HTMLScriptElement;
         s.async = true;

@@ -15,7 +15,8 @@ declare global {
 const Matomo: Vendor<MatomoConfig> = {
   name: 'Matomo',
   category: 'Analytics',
-  description: 'Matomo est une solution d\'analyse web open-source et respectueuse de la vie privée.',
+  description:
+    "Matomo est une solution d'analyse web open-source et respectueuse de la vie privée.",
   ...PURPOSE_ANALYTICS,
   requireConsent: true,
   artifacts: ['_pk_id', '_pk_ses', '_pk_ref', '_pk_cvar', 'mtm_consent', 'mtm_consent_removed'],

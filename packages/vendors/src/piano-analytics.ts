@@ -11,7 +11,8 @@ type PianoConfig = {
 const PianoAnalytics: Vendor<PianoConfig> = {
   name: 'Piano Analytics',
   category: 'Analytics',
-  description: 'Solution européenne de mesure d\'audience et d\'analyse comportementale (ex AT Internet).',
+  description:
+    "Solution européenne de mesure d'audience et d'analyse comportementale (ex AT Internet).",
   ...PURPOSE_ANALYTICS,
   requireConsent: true,
   artifacts: ['_pcid', '_pctx', 'pa_user', 'pa_privacy', 'atuserid'],

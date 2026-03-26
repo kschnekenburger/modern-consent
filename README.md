@@ -24,7 +24,9 @@ Built as an alternative to monolithic solutions like TarteAuCitron. ModernConsen
 <!-- 1. Config + vendors (before the library loads) -->
 <script>
   window.mcLayer = window.mcLayer || [];
-  window.modernConsent = function() { window.mcLayer.push(arguments); };
+  window.modernConsent = function () {
+    window.mcLayer.push(arguments);
+  };
 
   window.modernConsent('config', {
     cookieName: 'my_consent',
@@ -52,9 +54,7 @@ Built as an alternative to monolithic solutions like TarteAuCitron. ModernConsen
 </mc-consent-widget>
 
 <!-- 4. Re-open preferences link -->
-<a href="javascript:void(0)" onclick="window.modernConsent.openPanel()">
-  Cookie settings
-</a>
+<a href="javascript:void(0)" onclick="window.modernConsent.openPanel()"> Cookie settings </a>
 ```
 
 ### NPM
@@ -86,18 +86,18 @@ window.modernConsent('vendor', {
 
 All options are passed via `window.modernConsent('config', { ... })`.
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `cookieName` | `string` | `'mc_consent_state'` | Name of the consent cookie |
-| `cookieDomain` | `string` | — | Domain for cookie storage (e.g. `.example.com`) |
-| `consentMode` | `boolean` | `false` | Enable Google Consent Mode v2 |
-| `consentVersion` | `string` | — | Version string for GDPR audit trail. Changing it re-prompts the user |
-| `cdnBase` | `string` | — | Base URL for CDN vendor loading |
-| `consentOnly` | `boolean` | `false` | Consent-only mode (no vendor `init()` calls). For Tag Manager integration |
-| `pushDataLayer` | `boolean` | `false` | Also push consent events to `window.dataLayer` (GTM convenience) |
-| `displayMode` | `'vendor' \| 'purpose'` | `'vendor'` | How the details panel displays controls |
-| `functionalPurpose` | `boolean` | `false` | Show a mandatory "Site operation" block in the details panel |
-| `purposes` | `Record<string, { label, description? }>` | — | Custom purpose labels (fallback for vendors without `purposeLabel`) |
+| Option              | Type                                      | Default              | Description                                                               |
+| ------------------- | ----------------------------------------- | -------------------- | ------------------------------------------------------------------------- |
+| `cookieName`        | `string`                                  | `'mc_consent_state'` | Name of the consent cookie                                                |
+| `cookieDomain`      | `string`                                  | —                    | Domain for cookie storage (e.g. `.example.com`)                           |
+| `consentMode`       | `boolean`                                 | `false`              | Enable Google Consent Mode v2                                             |
+| `consentVersion`    | `string`                                  | —                    | Version string for GDPR audit trail. Changing it re-prompts the user      |
+| `cdnBase`           | `string`                                  | —                    | Base URL for CDN vendor loading                                           |
+| `consentOnly`       | `boolean`                                 | `false`              | Consent-only mode (no vendor `init()` calls). For Tag Manager integration |
+| `pushDataLayer`     | `boolean`                                 | `false`              | Also push consent events to `window.dataLayer` (GTM convenience)          |
+| `displayMode`       | `'vendor' \| 'purpose'`                   | `'vendor'`           | How the details panel displays controls                                   |
+| `functionalPurpose` | `boolean`                                 | `false`              | Show a mandatory "Site operation" block in the details panel              |
+| `purposes`          | `Record<string, { label, description? }>` | —                    | Custom purpose labels (fallback for vendors without `purposeLabel`)       |
 
 ### Consent Versioning
 
@@ -115,8 +115,8 @@ For GTM or TagCommander users who manage scripts externally:
 
 ```javascript
 window.modernConsent('config', {
-  consentOnly: true,      // CMP handles consent + cookie only
-  pushDataLayer: true,    // optional: push to window.dataLayer for GTM
+  consentOnly: true, // CMP handles consent + cookie only
+  pushDataLayer: true, // optional: push to window.dataLayer for GTM
 });
 ```
 
@@ -130,7 +130,7 @@ window.modernConsent.getConsent();
 // → { 'google-analytics': true, 'meta-pixel': false }
 
 // Listen to changes
-window.modernConsent.on('consent:update', (e) => {
+window.modernConsent.on('consent:update', e => {
   console.log(e.vendor, e.status); // 'google-analytics', 'granted'
 });
 
@@ -177,35 +177,35 @@ Purpose labels and descriptions come from the built-in vendors automatically (wi
 ```html
 <mc-consent-widget lang="fr" style="--mc-primary: #2563eb;">
   <span slot="title">Your title here</span>
-  <span slot="body">Your description here.<br>Supports HTML.</span>
+  <span slot="body">Your description here.<br />Supports HTML.</span>
 </mc-consent-widget>
 ```
 
 ### Slots
 
-| Slot | Description |
-|------|-------------|
-| `title` | Banner title |
-| `body` | Banner body/description |
+| Slot    | Description             |
+| ------- | ----------------------- |
+| `title` | Banner title            |
+| `body`  | Banner body/description |
 
 ### Theming (CSS Custom Properties)
 
 Set on `<mc-consent-widget>` or any ancestor — they pierce the Shadow DOM:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `--mc-primary` | `#111827` | Primary button background |
-| `--mc-primary-hover` | auto | Primary button hover (auto-derived) |
-| `--mc-primary-text` | `#fff` | Primary button text color |
-| `--mc-radius` | `12px` | Modal border radius |
-| `--mc-font` | `system-ui, ...` | Font family |
+| Variable             | Default          | Description                         |
+| -------------------- | ---------------- | ----------------------------------- |
+| `--mc-primary`       | `#111827`        | Primary button background           |
+| `--mc-primary-hover` | auto             | Primary button hover (auto-derived) |
+| `--mc-primary-text`  | `#fff`           | Primary button text color           |
+| `--mc-radius`        | `12px`           | Modal border radius                 |
+| `--mc-font`          | `system-ui, ...` | Font family                         |
 
 ### Languages
 
 The widget ships with `fr` and `en` labels. Set via the `lang` attribute:
 
 ```html
-<mc-consent-widget lang="en">
+<mc-consent-widget lang="en"></mc-consent-widget>
 ```
 
 ---
@@ -252,7 +252,9 @@ window.modernConsent('vendor', {
   description: 'Required for site operation.',
   category: 'Functional',
   requireConsent: false,
-  init() { /* activates immediately */ },
+  init() {
+    /* activates immediately */
+  },
 });
 ```
 
@@ -262,24 +264,24 @@ window.modernConsent('vendor', {
 
 After initialization, `window.modernConsent` exposes:
 
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `('config', options)` | — | Merge configuration |
-| `('vendor', vendor)` | — | Register a vendor |
-| `.openPanel()` | — | Open the consent panel |
-| `.getConsent()` | `ConsentState` | Get current consent state |
-| `.on(event, callback)` | `() => void` | Subscribe to events (returns unsubscriber) |
+| Method                 | Returns        | Description                                |
+| ---------------------- | -------------- | ------------------------------------------ |
+| `('config', options)`  | —              | Merge configuration                        |
+| `('vendor', vendor)`   | —              | Register a vendor                          |
+| `.openPanel()`         | —              | Open the consent panel                     |
+| `.getConsent()`        | `ConsentState` | Get current consent state                  |
+| `.on(event, callback)` | `() => void`   | Subscribe to events (returns unsubscriber) |
 
 ### Events
 
 ```javascript
 // Emitted for each vendor consent change
-window.modernConsent.on('consent:update', (data) => {
+window.modernConsent.on('consent:update', data => {
   // { vendor: 'google-analytics', status: 'granted' | 'denied' }
 });
 
 // Emitted when consent is saved (with GDPR audit data)
-window.modernConsent.on('consent:saved', (data) => {
+window.modernConsent.on('consent:saved', data => {
   // { consentId: 'uuid', timestamp: 1234567890, version: 'v1', consent: { ... } }
 });
 ```
@@ -293,48 +295,48 @@ All vendors are lazy-loaded — zero code is bundled unless activated. Each vend
 <details>
 <summary><strong>Analytics (13 vendors)</strong></summary>
 
-| Key | Name | Config | Consent |
-|-----|------|--------|---------|
-| `google-analytics` | Google Analytics | `measurementId: string` | Required |
-| `gtm` | Google Tag Manager | `containerId: string` | Required |
-| `matomo` | Matomo | `siteId: string`, `trackerUrl: string` | Required |
-| `clarity` | Microsoft Clarity | `projectId: string` | Required |
-| `hotjar` | Hotjar | `siteId: string` | Required |
-| `hubspot` | HubSpot | `portalId: string` | Required |
-| `amplitude` | Amplitude | `apiKey: string` | Required |
-| `piano-analytics` | Piano Analytics | `siteId: string`, `collectDomain?: string` | Required |
-| `posthog` | PostHog | `apiKey: string`, `instance?: string` | Required |
-| `sentry` | Sentry | `dsn: string`, `version?: string` | Required |
-| `abtasty` | AB Tasty | `accountId: string` | Required |
-| `segment` | Segment | `writeKey: string` | Required |
-| `plausible` | Plausible | `domain: string`, `instanceUrl?: string` | **Not required** |
+| Key                | Name               | Config                                     | Consent          |
+| ------------------ | ------------------ | ------------------------------------------ | ---------------- |
+| `google-analytics` | Google Analytics   | `measurementId: string`                    | Required         |
+| `gtm`              | Google Tag Manager | `containerId: string`                      | Required         |
+| `matomo`           | Matomo             | `siteId: string`, `trackerUrl: string`     | Required         |
+| `clarity`          | Microsoft Clarity  | `projectId: string`                        | Required         |
+| `hotjar`           | Hotjar             | `siteId: string`                           | Required         |
+| `hubspot`          | HubSpot            | `portalId: string`                         | Required         |
+| `amplitude`        | Amplitude          | `apiKey: string`                           | Required         |
+| `piano-analytics`  | Piano Analytics    | `siteId: string`, `collectDomain?: string` | Required         |
+| `posthog`          | PostHog            | `apiKey: string`, `instance?: string`      | Required         |
+| `sentry`           | Sentry             | `dsn: string`, `version?: string`          | Required         |
+| `abtasty`          | AB Tasty           | `accountId: string`                        | Required         |
+| `segment`          | Segment            | `writeKey: string`                         | Required         |
+| `plausible`        | Plausible          | `domain: string`, `instanceUrl?: string`   | **Not required** |
 
 </details>
 
 <details>
 <summary><strong>Advertising (9 vendors)</strong></summary>
 
-| Key | Name | Config | Consent |
-|-----|------|--------|---------|
-| `googleads` | Google Ads | `tagId: string` | Required |
-| `gcmads` | Google Ads (Personalized) | *(auto-linked by googleads)* | Required |
-| `meta-pixel` | Meta Pixel | `pixelId: string` | Required |
-| `linkedin-insight` | LinkedIn Insight Tag | `partnerId: string` | Required |
-| `tiktok-pixel` | TikTok Pixel | `pixelId: string` | Required |
-| `criteo` | Criteo | `accountId: string` | Required |
-| `pinterest-pixel` | Pinterest Tag | `tagId: string` | Required |
-| `snapchat-pixel` | Snapchat Pixel | `pixelId: string` | Required |
-| `reddit-pixel` | Reddit Pixel | `pixelId: string` | Required |
+| Key                | Name                      | Config                       | Consent  |
+| ------------------ | ------------------------- | ---------------------------- | -------- |
+| `googleads`        | Google Ads                | `tagId: string`              | Required |
+| `gcmads`           | Google Ads (Personalized) | _(auto-linked by googleads)_ | Required |
+| `meta-pixel`       | Meta Pixel                | `pixelId: string`            | Required |
+| `linkedin-insight` | LinkedIn Insight Tag      | `partnerId: string`          | Required |
+| `tiktok-pixel`     | TikTok Pixel              | `pixelId: string`            | Required |
+| `criteo`           | Criteo                    | `accountId: string`          | Required |
+| `pinterest-pixel`  | Pinterest Tag             | `tagId: string`              | Required |
+| `snapchat-pixel`   | Snapchat Pixel            | `pixelId: string`            | Required |
+| `reddit-pixel`     | Reddit Pixel              | `pixelId: string`            | Required |
 
 </details>
 
 <details>
 <summary><strong>Support (2 vendors)</strong></summary>
 
-| Key | Name | Config | Consent |
-|-----|------|--------|---------|
-| `intercom` | Intercom | `appId: string` | Required |
-| `smartsupp` | Smartsupp | `key: string` | Required |
+| Key         | Name      | Config          | Consent  |
+| ----------- | --------- | --------------- | -------- |
+| `intercom`  | Intercom  | `appId: string` | Required |
+| `smartsupp` | Smartsupp | `key: string`   | Required |
 
 </details>
 
@@ -365,11 +367,11 @@ The consent cookie stores a JSON object:
 
 ## Packages
 
-| Package | Description | Size |
-|---------|-------------|------|
-| `@modernconsent/core` | Consent engine, state, events, cookie | ~14 KB |
-| `@modernconsent/widget` | Web Component UI | ~22 KB (CDN bundle with core) |
-| `@modernconsent/vendors` | 24 built-in vendor modules | ~1-2 KB each |
+| Package                  | Description                           | Size                          |
+| ------------------------ | ------------------------------------- | ----------------------------- |
+| `@modernconsent/core`    | Consent engine, state, events, cookie | ~14 KB                        |
+| `@modernconsent/widget`  | Web Component UI                      | ~22 KB (CDN bundle with core) |
+| `@modernconsent/vendors` | 24 built-in vendor modules            | ~1-2 KB each                  |
 
 ---
 

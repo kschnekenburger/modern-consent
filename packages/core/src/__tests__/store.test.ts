@@ -17,10 +17,10 @@ describe('Store', () => {
     const store = new Store(10);
     const callback = vi.fn();
     store.subscribe(callback);
-    
+
     // Initial call
     expect(callback).toHaveBeenCalledWith(10);
-    
+
     store.set(20);
     expect(callback).toHaveBeenCalledWith(20);
     expect(callback).toHaveBeenCalledTimes(2);
@@ -30,10 +30,10 @@ describe('Store', () => {
     const store = new Store(10);
     const callback = vi.fn();
     const unsubscribe = store.subscribe(callback);
-    
+
     unsubscribe();
     store.set(20);
-    
+
     expect(callback).toHaveBeenCalledTimes(1);
     expect(callback).not.toHaveBeenCalledWith(20);
   });

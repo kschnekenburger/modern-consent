@@ -14,7 +14,8 @@ declare global {
 const Clarity: Vendor<ClarityConfig> = {
   name: 'Microsoft Clarity',
   category: 'Analytics',
-  description: 'Enregistrement de sessions et cartes de chaleur pour comprendre le comportement des utilisateurs.',
+  description:
+    'Enregistrement de sessions et cartes de chaleur pour comprendre le comportement des utilisateurs.',
   ...PURPOSE_ANALYTICS,
   requireConsent: true,
   artifacts: ['_clck', '_clsk', 'CLID', 'ANONCHK', 'MR', 'MUID', 'SM'],
@@ -22,7 +23,11 @@ const Clarity: Vendor<ClarityConfig> = {
     if (!config?.projectId) return;
 
     (function (c: any, l: any, a: any, r: string, i: string) {
-      c[a] = c[a] || function (...args: any[]) { (c[a].q = c[a].q || []).push(args); };
+      c[a] =
+        c[a] ||
+        function (...args: any[]) {
+          (c[a].q = c[a].q || []).push(args);
+        };
       const t = l.createElement(r) as HTMLScriptElement;
       t.async = true;
       t.src = 'https://www.clarity.ms/tag/' + i;

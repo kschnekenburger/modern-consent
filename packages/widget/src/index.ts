@@ -66,7 +66,8 @@ const LABELS: Record<string, WidgetLabels> = {
     purposeStatusDenied: 'Refusée',
     purposeStatusPending: 'En attente',
     functionalTitle: 'Fonctionnement du site',
-    functionalDescription: 'Ces cookies et traceurs sont indispensables au fonctionnement du site, pour fournir nos services et nous assurer de leur bon fonctionnement, pour des raisons de sécurité et pour s\'assurer du suivi de vos préférences.',
+    functionalDescription:
+      "Ces cookies et traceurs sont indispensables au fonctionnement du site, pour fournir nos services et nous assurer de leur bon fonctionnement, pour des raisons de sécurité et pour s'assurer du suivi de vos préférences.",
   },
   en: {
     bannerAcceptAll: 'Accept all',
@@ -91,7 +92,8 @@ const LABELS: Record<string, WidgetLabels> = {
     purposeStatusDenied: 'Denied',
     purposeStatusPending: 'Pending',
     functionalTitle: 'Site operation',
-    functionalDescription: 'These cookies and trackers are essential for the site to function, to provide our services, ensure security, and remember your preferences.',
+    functionalDescription:
+      'These cookies and trackers are essential for the site to function, to provide our services, ensure security, and remember your preferences.',
   },
 };
 
@@ -99,7 +101,11 @@ const LABELS: Record<string, WidgetLabels> = {
  * Resolve an i18n field: if it's a Record<lang, string>, pick the right language.
  * Falls back to 'fr', then first available value, then the fallback string.
  */
-function resolveI18n(value: string | Record<string, string> | undefined, lang: string, fallback: string): string {
+function resolveI18n(
+  value: string | Record<string, string> | undefined,
+  lang: string,
+  fallback: string,
+): string {
   if (!value) return fallback;
   if (typeof value === 'string') return value;
   return value[lang] ?? value['fr'] ?? Object.values(value)[0] ?? fallback;
@@ -590,9 +596,9 @@ export class McConsentWidget extends HTMLElement {
     if (this.mode === 'banner') {
       this.renderBanner();
     } else {
-      const displayMode = (typeof window !== 'undefined'
-        ? window._modernConsentConfig?.displayMode
-        : undefined) ?? 'vendor';
+      const displayMode =
+        (typeof window !== 'undefined' ? window._modernConsentConfig?.displayMode : undefined) ??
+        'vendor';
       if (displayMode === 'purpose') {
         this.renderPurposeDetails();
       } else {
@@ -636,9 +642,9 @@ export class McConsentWidget extends HTMLElement {
   private getCategoryStatus(services: ServiceMetadata[]): 'allowed' | 'denied' | 'pending' {
     const consentRequired = services.filter(s => s.requireConsent);
     if (consentRequired.length === 0) return 'allowed';
-    const allAllowed = consentRequired.every(s => this.consent[s.id] === true);
+    const allAllowed = consentRequired.every(s => this.consent[s.id]);
     if (allAllowed) return 'allowed';
-    const allDenied = consentRequired.every(s => this.consent[s.id] === false);
+    const allDenied = consentRequired.every(s => !this.consent[s.id]);
     if (allDenied) return 'denied';
     return 'pending';
   }
@@ -654,7 +660,8 @@ export class McConsentWidget extends HTMLElement {
   }
 
   private renderFunctionalBlock(): string {
-    const show = typeof window !== 'undefined' && window._modernConsentConfig?.functionalPurpose === true;
+    const show =
+      typeof window !== 'undefined' && window._modernConsentConfig?.functionalPurpose === true;
     if (!show) return '';
     const l = this.labels;
     return `
@@ -697,9 +704,9 @@ export class McConsentWidget extends HTMLElement {
     this.shadow.getElementById('mc-accept-all-btn')!.addEventListener('click', this.onAcceptAll);
     this.shadow.getElementById('mc-deny-all-btn')!.addEventListener('click', this.onDenyAll);
     this.shadow.getElementById('mc-customize-btn')!.addEventListener('click', this.onCustomize);
-    this.shadow.getElementById('mc-close-btn')!.addEventListener('click', () =>
-      isPanelOpen.set(false),
-    );
+    this.shadow
+      .getElementById('mc-close-btn')!
+      .addEventListener('click', () => isPanelOpen.set(false));
   }
 
   private renderDetails() {
@@ -711,9 +718,7 @@ export class McConsentWidget extends HTMLElement {
       .sort()
       .map(cat => {
         const services = groups[cat];
-        const hasPending = services.some(
-          s => s.requireConsent && this.consent[s.id] === undefined,
-        );
+        const hasPending = services.some(s => s.requireConsent && this.consent[s.id] === undefined);
 
         const servicesHtml = services
           .map(s => {
@@ -730,8 +735,14 @@ export class McConsentWidget extends HTMLElement {
             }
 
             const consent = this.consent[s.id];
-            const statusLabel = consent === true ? l.statusAllowed : consent === false ? l.statusDenied : l.statusPending;
-            const statusClass = consent === true ? 'allowed' : consent === false ? 'denied' : 'pending';
+            const statusLabel =
+              consent
+                ? l.statusAllowed
+                : !consent
+                  ? l.statusDenied
+                  : l.statusPending;
+            const statusClass =
+              consent ? 'allowed' : !consent ? 'denied' : 'pending';
 
             return `
               <div class="service">
@@ -741,10 +752,10 @@ export class McConsentWidget extends HTMLElement {
                   <div class="service-status ${statusClass}">${escapeHtml(statusLabel)}</div>
                 </div>
                 <div class="service-actions">
-                  <button class="btn btn-outline ${ statusClass === 'allowed' ? 'btn-allowed-active' : '' }" type="button" data-action="allow" data-id="${escapeHtml(s.id)}">
+                  <button class="btn btn-outline ${statusClass === 'allowed' ? 'btn-allowed-active' : ''}" type="button" data-action="allow" data-id="${escapeHtml(s.id)}">
                     ${escapeHtml(l.serviceAccept)}
                   </button>
-                  <button class="btn btn-outline ${ statusClass === 'denied' ? 'btn-denied-active' : '' }" type="button" data-action="deny" data-id="${escapeHtml(s.id)}">
+                  <button class="btn btn-outline ${statusClass === 'denied' ? 'btn-denied-active' : ''}" type="button" data-action="deny" data-id="${escapeHtml(s.id)}">
                     ${escapeHtml(l.serviceDeny)}
                   </button>
                 </div>
@@ -790,9 +801,9 @@ export class McConsentWidget extends HTMLElement {
     this.shadow.getElementById('mc-accept-all-btn')!.addEventListener('click', this.onAcceptAll);
     this.shadow.getElementById('mc-deny-all-btn')!.addEventListener('click', this.onDenyAll);
     this.shadow.getElementById('mc-back-btn')!.addEventListener('click', this.onBackToBanner);
-    this.shadow.getElementById('mc-close-btn')!.addEventListener('click', () =>
-      isPanelOpen.set(false),
-    );
+    this.shadow
+      .getElementById('mc-close-btn')!
+      .addEventListener('click', () => isPanelOpen.set(false));
 
     this.shadow.querySelectorAll<HTMLButtonElement>('[data-action]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -806,9 +817,8 @@ export class McConsentWidget extends HTMLElement {
     const lang = this.getAttribute('lang') ?? 'fr';
     const functionalHtml = this.renderFunctionalBlock();
     const groups = this.groupServicesByCategory();
-    const configPurposes = typeof window !== 'undefined'
-      ? window._modernConsentConfig?.purposes
-      : undefined;
+    const configPurposes =
+      typeof window !== 'undefined' ? window._modernConsentConfig?.purposes : undefined;
 
     const bodyHtml = Object.keys(groups)
       .sort()
@@ -819,8 +829,16 @@ export class McConsentWidget extends HTMLElement {
 
         // Resolve purpose label: vendor-level (i18n) > config-level > raw category name
         const vendorWithPurpose = services.find(s => s.purposeLabel);
-        const purposeLabel = resolveI18n(vendorWithPurpose?.purposeLabel, lang, configPurposes?.[cat]?.label ?? cat);
-        const purposeDescription = resolveI18n(vendorWithPurpose?.purposeDescription, lang, configPurposes?.[cat]?.description ?? '');
+        const purposeLabel = resolveI18n(
+          vendorWithPurpose?.purposeLabel,
+          lang,
+          configPurposes?.[cat]?.label ?? cat,
+        );
+        const purposeDescription = resolveI18n(
+          vendorWithPurpose?.purposeDescription,
+          lang,
+          configPurposes?.[cat]?.description ?? '',
+        );
 
         const actionsHtml = allNonConsent
           ? `<span class="chip chip-active">${escapeHtml(l.statusAlwaysActive)}</span>`
@@ -836,14 +854,16 @@ export class McConsentWidget extends HTMLElement {
           `;
 
         const vendorsHtml = services
-          .map(s => `
+          .map(
+            s => `
             <div class="service purpose-service-info">
               <div class="service-main">
                 <div class="service-name">${escapeHtml(s.name)}</div>
                 <div class="service-description">${escapeHtml(s.description)}</div>
               </div>
             </div>
-          `)
+          `,
+          )
           .join('');
 
         return `
@@ -886,9 +906,9 @@ export class McConsentWidget extends HTMLElement {
     this.shadow.getElementById('mc-accept-all-btn')!.addEventListener('click', this.onAcceptAll);
     this.shadow.getElementById('mc-deny-all-btn')!.addEventListener('click', this.onDenyAll);
     this.shadow.getElementById('mc-back-btn')!.addEventListener('click', this.onBackToBanner);
-    this.shadow.getElementById('mc-close-btn')!.addEventListener('click', () =>
-      isPanelOpen.set(false),
-    );
+    this.shadow
+      .getElementById('mc-close-btn')!
+      .addEventListener('click', () => isPanelOpen.set(false));
 
     this.shadow.querySelectorAll<HTMLButtonElement>('[data-cat-action]').forEach(btn => {
       btn.addEventListener('click', () => {

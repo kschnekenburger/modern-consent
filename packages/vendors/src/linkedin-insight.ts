@@ -18,7 +18,14 @@ const LinkedInInsight: Vendor<LinkedInConfig> = {
   description: 'Suivi des conversions et retargeting pour les campagnes LinkedIn Ads.',
   ...PURPOSE_ADS,
   requireConsent: true,
-  artifacts: ['li_sugr', 'bcookie', 'lidc', 'UserMatchHistory', 'AnalyticsSyncHistory', 'li_fat_id'],
+  artifacts: [
+    'li_sugr',
+    'bcookie',
+    'lidc',
+    'UserMatchHistory',
+    'AnalyticsSyncHistory',
+    'li_fat_id',
+  ],
   init: (config: LinkedInConfig) => {
     if (!config?.partnerId) return;
 
@@ -27,7 +34,9 @@ const LinkedInInsight: Vendor<LinkedInConfig> = {
 
     (function (l: any) {
       if (!l.lintrk) {
-        l.lintrk = function (...args: any[]) { (l.lintrk.q = l.lintrk.q || []).push(args); };
+        l.lintrk = function (...args: any[]) {
+          (l.lintrk.q = l.lintrk.q || []).push(args);
+        };
         const s = document.getElementsByTagName('script')[0];
         const b = document.createElement('script') as HTMLScriptElement;
         b.async = true;

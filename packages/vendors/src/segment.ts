@@ -14,22 +14,40 @@ declare global {
 const Segment: Vendor<SegmentConfig> = {
   name: 'Segment',
   category: 'Analytics',
-  description: 'Plateforme de données client (CDP) qui centralise et route les événements vers vos outils.',
+  description:
+    'Plateforme de données client (CDP) qui centralise et route les événements vers vos outils.',
   ...PURPOSE_ANALYTICS,
   requireConsent: true,
   artifacts: ['ajs_user_id', 'ajs_anonymous_id', 'ajs_group_id'],
   init: (config: SegmentConfig) => {
     if (!config?.writeKey) return;
 
-    const analytics: any = window.analytics = window.analytics || [];
+    const analytics: any = (window.analytics = window.analytics || []);
     if (analytics.initialize) return;
     if (analytics.invoked) return;
     analytics.invoked = true;
     analytics.methods = [
-      'trackSubmit', 'trackClick', 'trackLink', 'trackForm', 'pageview',
-      'identify', 'reset', 'group', 'track', 'ready', 'alias', 'debug',
-      'page', 'screen', 'once', 'off', 'on', 'addSourceMiddleware',
-      'addIntegrationMiddleware', 'setAnonymousId', 'addDestinationMiddleware',
+      'trackSubmit',
+      'trackClick',
+      'trackLink',
+      'trackForm',
+      'pageview',
+      'identify',
+      'reset',
+      'group',
+      'track',
+      'ready',
+      'alias',
+      'debug',
+      'page',
+      'screen',
+      'once',
+      'off',
+      'on',
+      'addSourceMiddleware',
+      'addIntegrationMiddleware',
+      'setAnonymousId',
+      'addDestinationMiddleware',
     ];
     analytics.factory = function (e: string) {
       return function (...args: any[]) {

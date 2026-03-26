@@ -8,7 +8,7 @@ import * as registry from '../registry';
 vi.mock('../registry', async () => {
   const actual = await vi.importActual('../registry');
   return {
-    ...actual as any,
+    ...(actual as any),
     activateService: vi.fn(),
   };
 });
@@ -19,8 +19,22 @@ describe('Consent Logic', () => {
     hasAnswered.set(false);
     isPanelOpen.set(true);
     servicesList.set([
-      { id: 'service1', name: 'S1', description: 'D1', category: 'C1', loaded: false, requireConsent: true },
-      { id: 'service2', name: 'S2', description: 'D2', category: 'C2', loaded: false, requireConsent: true },
+      {
+        id: 'service1',
+        name: 'S1',
+        description: 'D1',
+        category: 'C1',
+        loaded: false,
+        requireConsent: true,
+      },
+      {
+        id: 'service2',
+        name: 'S2',
+        description: 'D2',
+        category: 'C2',
+        loaded: false,
+        requireConsent: true,
+      },
     ]);
     window._modernConsentConfig = {};
     window.consentLayer = [];
@@ -53,8 +67,22 @@ describe('Consent Logic', () => {
 
   it('should reload when denying a service that was already loaded', () => {
     servicesList.set([
-      { id: 'service1', name: 'S1', description: 'D1', category: 'C1', loaded: true, requireConsent: true },
-      { id: 'service2', name: 'S2', description: 'D2', category: 'C2', loaded: false, requireConsent: true },
+      {
+        id: 'service1',
+        name: 'S1',
+        description: 'D1',
+        category: 'C1',
+        loaded: true,
+        requireConsent: true,
+      },
+      {
+        id: 'service2',
+        name: 'S2',
+        description: 'D2',
+        category: 'C2',
+        loaded: false,
+        requireConsent: true,
+      },
     ]);
 
     const originalLocation = window.location;
@@ -138,7 +166,14 @@ describe('Consent Logic', () => {
   it('should NOT reload in consentOnly mode even when service was loaded', () => {
     window._modernConsentConfig = { consentOnly: true };
     servicesList.set([
-      { id: 'service1', name: 'S1', description: 'D1', category: 'C1', loaded: true, requireConsent: true },
+      {
+        id: 'service1',
+        name: 'S1',
+        description: 'D1',
+        category: 'C1',
+        loaded: true,
+        requireConsent: true,
+      },
     ]);
 
     const originalLocation = window.location;
@@ -156,8 +191,22 @@ describe('Consent Logic', () => {
   it('should NOT reload on denyAll in consentOnly mode', () => {
     window._modernConsentConfig = { consentOnly: true };
     servicesList.set([
-      { id: 'service1', name: 'S1', description: 'D1', category: 'C1', loaded: true, requireConsent: true },
-      { id: 'service2', name: 'S2', description: 'D2', category: 'C2', loaded: true, requireConsent: true },
+      {
+        id: 'service1',
+        name: 'S1',
+        description: 'D1',
+        category: 'C1',
+        loaded: true,
+        requireConsent: true,
+      },
+      {
+        id: 'service2',
+        name: 'S2',
+        description: 'D2',
+        category: 'C2',
+        loaded: true,
+        requireConsent: true,
+      },
     ]);
 
     const originalLocation = window.location;
