@@ -55,7 +55,7 @@ const BUILTIN_LOADERS: Record<string, () => Promise<any>> = {
  * @returns A cleanup function that removes the resolver.
  */
 export function useBuiltinVendors(): () => void {
-  return addResolver(name => {
+  return addResolver((name: string) => {
     const factory = BUILTIN_LOADERS[name];
     if (!factory) return undefined;
     return async () => {
