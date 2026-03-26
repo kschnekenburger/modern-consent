@@ -58,7 +58,7 @@ describe('Consent Logic', () => {
     ]);
 
     const originalLocation = window.location;
-    // @ts-ignore
+    // @ts-expect-error — overriding window.location for test
     delete window.location;
     window.location = { ...originalLocation, reload: vi.fn() } as any;
 
@@ -66,14 +66,14 @@ describe('Consent Logic', () => {
     expect(consentState.get()['service1']).toBe(false);
     expect(window.location.reload).toHaveBeenCalled();
 
-    // @ts-ignore
+    // @ts-expect-error — overriding window.location for test
     window.location = originalLocation;
   });
 
   it('should NOT reload when denying a service that was never loaded', () => {
     // service1 has loaded: false (default from beforeEach)
     const originalLocation = window.location;
-    // @ts-ignore
+    // @ts-expect-error — overriding window.location for test
     delete window.location;
     window.location = { ...originalLocation, reload: vi.fn() } as any;
 
@@ -81,7 +81,7 @@ describe('Consent Logic', () => {
     expect(consentState.get()['service1']).toBe(false);
     expect(window.location.reload).not.toHaveBeenCalled();
 
-    // @ts-ignore
+    // @ts-expect-error — overriding window.location for test
     window.location = originalLocation;
   });
 
@@ -142,14 +142,14 @@ describe('Consent Logic', () => {
     ]);
 
     const originalLocation = window.location;
-    // @ts-ignore
+    // @ts-expect-error — overriding window.location for test
     delete window.location;
     window.location = { ...originalLocation, reload: vi.fn() } as any;
 
     setConsent('service1', false);
     expect(window.location.reload).not.toHaveBeenCalled();
 
-    // @ts-ignore
+    // @ts-expect-error — overriding window.location for test
     window.location = originalLocation;
   });
 
@@ -161,14 +161,14 @@ describe('Consent Logic', () => {
     ]);
 
     const originalLocation = window.location;
-    // @ts-ignore
+    // @ts-expect-error — overriding window.location for test
     delete window.location;
     window.location = { ...originalLocation, reload: vi.fn() } as any;
 
     denyAll();
     expect(window.location.reload).not.toHaveBeenCalled();
 
-    // @ts-ignore
+    // @ts-expect-error — overriding window.location for test
     window.location = originalLocation;
   });
 });

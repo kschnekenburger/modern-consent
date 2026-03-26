@@ -21,8 +21,8 @@ const GoogleAnalytics: Vendor<GoogleAnalyticsConfig> = {
   requireConsent: true,
   setup: (config: GoogleAnalyticsConfig) => {
     window.dataLayer = window.dataLayer || [];
-    window.gtag = function gtag() {
-      window.dataLayer.push(arguments);
+    window.gtag = function gtag(...args: unknown[]) {
+      window.dataLayer.push(args);
     };
     window.gtag('js', new Date());
     window.gtag('consent', 'default', {
