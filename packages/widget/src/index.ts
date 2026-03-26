@@ -735,14 +735,12 @@ export class McConsentWidget extends HTMLElement {
             }
 
             const consent = this.consent[s.id];
-            const statusLabel =
-              consent
-                ? l.statusAllowed
-                : !consent
-                  ? l.statusDenied
-                  : l.statusPending;
-            const statusClass =
-              consent ? 'allowed' : !consent ? 'denied' : 'pending';
+            const statusLabel = consent
+              ? l.statusAllowed
+              : !consent
+                ? l.statusDenied
+                : l.statusPending;
+            const statusClass = consent ? 'allowed' : !consent ? 'denied' : 'pending';
 
             return `
               <div class="service">
