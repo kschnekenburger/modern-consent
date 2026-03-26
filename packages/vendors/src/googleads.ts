@@ -72,7 +72,10 @@ const GoogleAds: Vendor<GoogleAdsOption> = {
     },
   ],
   link: [
-    { vendor: 'gcmads', condition: ({ consentConfig }: { consentConfig: any }) => consentConfig.consentMode === true },
+    {
+      vendor: 'gcmads',
+      condition: ({ consentConfig }: { consentConfig: any }) => consentConfig.consentMode === true,
+    },
   ],
 };
 
