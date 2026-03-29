@@ -25,6 +25,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build
+        run: pnpm build
+
       - name: Lint
         run: pnpm lint
 
@@ -37,14 +40,11 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Build
-        run: pnpm build
-
-      - name: Check bundle sizes
+      - name: Bundle sizes
         run: |
-          echo "📦 Core bundle:"
+          echo "📦 Core:"
           du -sh packages/core/dist/index.js
-          echo "📦 Widget CDN bundle:"
-          du -sh packages/widget/dist/mc-widget.js
-          echo "📦 Vendor files:"
+          echo "📦 Widget (consent.js):"
+          du -sh packages/widget/dist/consent.js
+          echo "📦 Vendors:"
           ls -lh packages/vendors/dist/*.js | grep -v chunk | grep -v map
