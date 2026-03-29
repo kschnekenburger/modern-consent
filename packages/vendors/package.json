@@ -1,6 +1,6 @@
 {
   "name": "@modernconsent/vendors",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Built-in vendor implementations for ModernConsent",
   "type": "module",
   "main": "./dist/index.js",
