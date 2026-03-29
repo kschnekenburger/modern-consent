@@ -103,7 +103,11 @@ export function registerService(args: {
       }
 
       if (vendor?.setup) {
-        vendor.setup(config);
+        try {
+          vendor.setup(config);
+        } catch (err) {
+          console.error(`[modern-consent] setup() failed for "${id}":`, err);
+        }
       }
 
       if (vendor?.link && vendor.link.length > 0) {
@@ -153,7 +157,7 @@ export function registerService(args: {
 }
 
 /**
- * Vérifie si on doit activer le service ou ouvrir le panel (nouveau service détecté)
+ * Check if the service should auto-activate or if the panel should open (new service detected).
  */
 function checkAutoActivation(id: string) {
   const vendor = loadedVendors.get(id);
@@ -177,7 +181,7 @@ function checkAutoActivation(id: string) {
 }
 
 /**
- * Active le service (Script + DOM)
+ * Activate the service (script injection + DOM rendering).
  */
 export async function activateService(id: string) {
   if (typeof window === 'undefined') return;

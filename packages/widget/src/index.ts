@@ -17,6 +17,8 @@ type WidgetMode = 'banner' | 'details';
  * The integrator provides title and body via <slot name="title"> and <slot name="body">.
  */
 type WidgetLabels = {
+  bannerTitle: string;
+  bannerBody: string;
   bannerAcceptAll: string;
   bannerDenyAll: string;
   bannerCustomize: string;
@@ -44,6 +46,9 @@ type WidgetLabels = {
 
 const LABELS: Record<string, WidgetLabels> = {
   fr: {
+    bannerTitle: 'Nous respectons votre vie privée',
+    bannerBody:
+      'Ce site utilise des cookies pour améliorer votre expérience, mesurer l\u2019audience et personnaliser les contenus. Votre choix sera conservé et modifiable à tout moment.',
     bannerAcceptAll: 'Tout accepter',
     bannerDenyAll: 'Continuer sans accepter',
     bannerCustomize: 'Personnaliser',
@@ -70,6 +75,9 @@ const LABELS: Record<string, WidgetLabels> = {
       "Ces cookies et traceurs sont indispensables au fonctionnement du site, pour fournir nos services et nous assurer de leur bon fonctionnement, pour des raisons de sécurité et pour s'assurer du suivi de vos préférences.",
   },
   en: {
+    bannerTitle: 'We respect your privacy',
+    bannerBody:
+      'This site uses cookies to improve your experience, measure audience and personalize content. Your choice will be saved and can be changed at any time.',
     bannerAcceptAll: 'Accept all',
     bannerDenyAll: 'Continue without accepting',
     bannerCustomize: 'Customize',
@@ -417,6 +425,10 @@ const STYLES = `
 
 // Shared across all instances — instantiated once, never GC'd
 let _sharedStyleSheet: CSSStyleSheet | null = null;
+const _supportsAdoptedStyleSheets =
+  typeof CSSStyleSheet !== 'undefined' &&
+  'adoptedStyleSheets' in Document.prototype &&
+  'replaceSync' in CSSStyleSheet.prototype;
 
 function getSharedStyleSheet(): CSSStyleSheet {
   if (!_sharedStyleSheet) {
@@ -424,6 +436,15 @@ function getSharedStyleSheet(): CSSStyleSheet {
     _sharedStyleSheet.replaceSync(STYLES);
   }
   return _sharedStyleSheet;
+}
+
+/** Fallback for browsers without adoptedStyleSheets (Safari < 16.4) */
+function injectStyleFallback(shadow: ShadowRoot) {
+  if (shadow.querySelector('style[data-mc]')) return;
+  const style = document.createElement('style');
+  style.setAttribute('data-mc', '');
+  style.textContent = STYLES;
+  shadow.prepend(style);
 }
 
 export class McConsentWidget extends HTMLElement {
@@ -461,8 +482,12 @@ export class McConsentWidget extends HTMLElement {
   }
 
   connectedCallback() {
-    // Apply styles once — persists across renders since we're using adoptedStyleSheets
-    this.shadow.adoptedStyleSheets = [getSharedStyleSheet()];
+    // Apply styles once — use adoptedStyleSheets when available, fallback to <style> tag
+    if (_supportsAdoptedStyleSheets) {
+      this.shadow.adoptedStyleSheets = [getSharedStyleSheet()];
+    } else {
+      injectStyleFallback(this.shadow);
+    }
 
     // subscribe() fires immediately with current value.
     // ORDER MATTERS: consent + answered must sync BEFORE servicesList
@@ -685,12 +710,12 @@ export class McConsentWidget extends HTMLElement {
         <div class="modal">
           <div class="header">
             <div>
-              <h2 class="title" id="mc-title"><slot name="title"></slot></h2>
+              <h2 class="title" id="mc-title"><slot name="title">${escapeHtml(l.bannerTitle)}</slot></h2>
             </div>
             <button class="close-btn" type="button" aria-label="${escapeHtml(l.close)}" id="mc-close-btn">✕</button>
           </div>
           <div class="body">
-            <slot name="body"></slot>
+            <slot name="body">${escapeHtml(l.bannerBody)}</slot>
           </div>
           <div class="footer">
             <button class="btn btn-ghost" type="button" id="mc-deny-all-btn">${escapeHtml(l.bannerDenyAll)}</button>

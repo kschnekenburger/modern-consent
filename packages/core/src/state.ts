@@ -89,7 +89,9 @@ export const openPanel = () => isPanelOpen.set(true);
 // Tracked so that calling initState multiple times never stacks duplicate subscribers
 let _cookieUnsubs: (() => void)[] = [];
 
-export const initState = (config: any) => {
+export const initState = (
+  config: Pick<import('./layer').McConfig, 'cookieName' | 'cookieDomain' | 'consentVersion'>,
+) => {
   const cookieName: string = config?.cookieName || DEFAULT_STORAGE_KEY;
   const cookieDomain: string | undefined = config?.cookieDomain;
   const consentVersion: string | undefined = config?.consentVersion;

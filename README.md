@@ -44,10 +44,10 @@ Built as an alternative to monolithic solutions like TarteAuCitron. ModernConsen
   });
 </script>
 
-<!-- 2. Widget + Core (CDN bundle) -->
-<script src="https://unpkg.com/@modernconsent/widget/dist/mc-widget.js"></script>
+<!-- 2. Load the standalone bundle (core + widget + styles) -->
+<script src="https://unpkg.com/@modernconsent/widget/dist/consent.js" defer></script>
 
-<!-- 3. Consent widget -->
+<!-- 3. Place the widget in your page -->
 <mc-consent-widget lang="fr" style="--mc-primary: #2563eb;">
   <span slot="title">We respect your privacy</span>
   <span slot="body">This site uses cookies to improve your experience.</span>
@@ -56,6 +56,9 @@ Built as an alternative to monolithic solutions like TarteAuCitron. ModernConsen
 <!-- 4. Re-open preferences link -->
 <a href="javascript:void(0)" onclick="window.modernConsent.openPanel()"> Cookie settings </a>
 ```
+
+> **Note:** The `<mc-consent-widget>` element must be added to your HTML by you.
+> The `title` and `body` slots are optional — built-in i18n defaults (fr/en) are used when omitted.
 
 ### NPM
 
@@ -172,9 +175,15 @@ Purpose labels and descriptions come from the built-in vendors automatically (wi
 
 ## Widget
 
+The `<mc-consent-widget>` element must be placed in your HTML — there is no auto-mount.
+
 ### HTML
 
 ```html
+<!-- Minimal (uses built-in i18n defaults) -->
+<mc-consent-widget lang="fr"></mc-consent-widget>
+
+<!-- Custom title, body and primary color -->
 <mc-consent-widget lang="fr" style="--mc-primary: #2563eb;">
   <span slot="title">Your title here</span>
   <span slot="body">Your description here.<br />Supports HTML.</span>
@@ -183,10 +192,10 @@ Purpose labels and descriptions come from the built-in vendors automatically (wi
 
 ### Slots
 
-| Slot    | Description             |
-| ------- | ----------------------- |
-| `title` | Banner title            |
-| `body`  | Banner body/description |
+| Slot    | Description                                                                      |
+| ------- | -------------------------------------------------------------------------------- |
+| `title` | Banner title. Defaults to built-in i18n (fr: "Nous respectons votre vie privée") |
+| `body`  | Banner body/description. Defaults to built-in i18n text                          |
 
 ### Theming (CSS Custom Properties)
 
@@ -367,11 +376,11 @@ The consent cookie stores a JSON object:
 
 ## Packages
 
-| Package                  | Description                           | Size                          |
-| ------------------------ | ------------------------------------- | ----------------------------- |
-| `@modernconsent/core`    | Consent engine, state, events, cookie | ~14 KB                        |
-| `@modernconsent/widget`  | Web Component UI                      | ~22 KB (CDN bundle with core) |
-| `@modernconsent/vendors` | 24 built-in vendor modules            | ~1-2 KB each                  |
+| Package                  | Description                                      | Size                                      |
+| ------------------------ | ------------------------------------------------ | ----------------------------------------- |
+| `@modernconsent/core`    | Consent engine, state, events, cookie            | ~14 KB                                    |
+| `@modernconsent/widget`  | Web Component UI (`consent.js` = CDN standalone) | ~28 KB (CDN bundle with core, ~8 KB gzip) |
+| `@modernconsent/vendors` | 24 built-in vendor modules                       | ~1-2 KB each                              |
 
 ---
 

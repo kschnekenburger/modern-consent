@@ -1,17 +1,11 @@
 {
   "name": "@modernconsent/widget",
-  "version": "0.0.1",
-  "description": "Web Component cookie consent widget",
+  "version": "1.0.0",
+  "description": "Web Component cookie consent widget — standalone IIFE bundle",
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
+  "main": "./dist/consent.js",
+  "unpkg": "./dist/consent.js",
+  "jsdelivr": "./dist/consent.js",
   "files": [
     "dist",
     "README.md"
