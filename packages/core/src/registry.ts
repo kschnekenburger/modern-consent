@@ -1,5 +1,7 @@
 import { consentState, hasAnswered, isPanelOpen, servicesList } from './state';
 import { resolveVendor } from './resolver';
+import { registerGcmSignals, syncConsentMode } from './gcm';
+import type { GcmSignal } from './gcm';
 import type { McConfig } from './layer';
 
 declare global {
@@ -30,6 +32,13 @@ export interface Vendor<TConfig = void> {
   init?: (config: TConfig) => void;
   /** Cookie names set by this vendor — cleared when consent is revoked. */
   artifacts?: string[] | ((config: TConfig) => string[]);
+  /**
+   * Google Consent Mode v2 signals this vendor depends on. When `consentMode: true`,
+   * the core grants them while the vendor has consent and denies them otherwise.
+   * Vendors must not call gtag('consent', ...) themselves.
+   * @example gcm: ['analytics_storage']
+   */
+  gcm?: GcmSignal[];
   render?: (dataset: DOMStringMap) => string;
   requireConsent: boolean;
   event?: {
@@ -61,10 +70,36 @@ export function __resetRegistry() {
 }
 
 /**
+ * Domain attributes to try when expiring a third-party cookie.
+ * Vendors set cookies either host-only (no domain) or on some suffix of the hostname
+ * (GA uses the eTLD+1, e.g. `.example.com`). A deletion only works when the domain
+ * attribute matches, so we try every suffix. Harmless when no cookie matches.
+ */
+export function cookieDomainCandidates(): (string | undefined)[] {
+  const candidates: (string | undefined)[] = [undefined];
+  if (typeof window === 'undefined') return candidates;
+
+  const configured = window._modernConsentConfig?.cookieDomain;
+  if (configured) candidates.push(configured);
+
+  const host = window.location.hostname;
+  const isIp = /^[\d.]+$|:/.test(host);
+  if (host && host !== 'localhost' && !isIp) {
+    const parts = host.split('.');
+    for (let i = 0; i < parts.length - 1; i++) {
+      const domain = '.' + parts.slice(i).join('.');
+      if (!candidates.includes(domain)) candidates.push(domain);
+    }
+  }
+  return candidates;
+}
+
+/**
  * Clears all cookies declared in vendor.artifacts.
- * Called before reload or on denyAll to clean up vendor-set cookies.
+ * Called on every revocation (setConsent(false), denyAll, purpose toggles).
  */
 export function clearVendorArtifacts(id: string): void {
+  if (typeof document === 'undefined') return;
   const vendor = loadedVendors.get(id);
   if (!vendor?.artifacts) return;
 
@@ -72,13 +107,11 @@ export function clearVendorArtifacts(id: string): void {
   const cookieNames =
     typeof vendor.artifacts === 'function' ? vendor.artifacts(config) : vendor.artifacts;
 
-  const domain = window._modernConsentConfig?.cookieDomain;
-
+  const domains = cookieDomainCandidates();
   cookieNames.forEach(name => {
-    document.cookie = `${name}=; max-age=0; path=/`;
-    if (domain) {
-      document.cookie = `${name}=; max-age=0; path=/; domain=${domain}`;
-    }
+    domains.forEach(domain => {
+      document.cookie = `${name}=; max-age=0; path=/${domain ? `; domain=${domain}` : ''}`;
+    });
   });
 }
 
@@ -98,9 +131,8 @@ export function registerService(args: {
     .then((module: any) => {
       const vendor: Vendor<any> = module.default || module;
       loadedVendors.set(id, vendor);
-      if (config !== undefined) {
-        vendorsConfig.set(id, config);
-      }
+      vendorsConfig.set(id, config);
+      registerGcmSignals(id, vendor?.gcm);
 
       if (vendor?.setup) {
         try {
@@ -150,6 +182,10 @@ export function registerService(args: {
       });
 
       checkAutoActivation(id);
+
+      // The vendor may have declared GCM signals for a consent that is already stored:
+      // push the corresponding `consent update` now that we know about them.
+      syncConsentMode();
     })
     .catch(err => {
       console.error(`[modern-consent] Failed to load vendor "${id}":`, err);

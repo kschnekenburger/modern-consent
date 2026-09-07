@@ -19,15 +19,20 @@ export interface ServiceMetadata {
   requireConsent: boolean;
 }
 
-interface StoredState {
+/** Audit metadata attached to the last committed consent action. */
+export interface ConsentMeta {
+  /** Unique identifier of the last consent action — GDPR audit trail. */
+  consentId?: string;
+  /** Unix timestamp (ms) of the last consent action. */
+  timestamp?: number;
+  /** Value of `consentVersion` at the time of the action. */
+  version?: string;
+}
+
+/** Full snapshot of the persisted consent — what the cookie contains. */
+export interface ConsentRecord extends ConsentMeta {
   consent: ConsentState;
   answered: boolean;
-  /** Unix timestamp (ms) of when consent was last given — for GDPR audit trail. */
-  timestamp?: number;
-  /** Version of the consent banner at the time of consent. */
-  version?: string;
-  /** Unique identifier per consent action — for GDPR audit trail. */
-  consentId?: string;
 }
 
 const DEFAULT_STORAGE_KEY = 'mc_consent_state';
@@ -82,27 +87,35 @@ const setCookie = (name: string, value: string, options: CookieOptions = {}) => 
 
 export const consentState = new Store<ConsentState>({});
 export const hasAnswered = new Store<boolean>(false);
+export const consentMeta = new Store<ConsentMeta>({});
 export const servicesList = new Store<ServiceMetadata[]>([]);
 export const isPanelOpen = new Store<boolean>(false);
 export const openPanel = () => isPanelOpen.set(true);
 
-// Tracked so that calling initState multiple times never stacks duplicate subscribers
-let _cookieUnsubs: (() => void)[] = [];
+type PersistOptions = Pick<
+  import('./layer').McConfig,
+  'cookieName' | 'cookieDomain' | 'consentVersion'
+>;
 
-export const initState = (
-  config: Pick<import('./layer').McConfig, 'cookieName' | 'cookieDomain' | 'consentVersion'>,
-) => {
-  const cookieName: string = config?.cookieName || DEFAULT_STORAGE_KEY;
-  const cookieDomain: string | undefined = config?.cookieDomain;
-  const consentVersion: string | undefined = config?.consentVersion;
+let _persist: PersistOptions = {};
 
-  let initialData: StoredState = { consent: {}, answered: false };
+/**
+ * Loads the stored consent into the stores.
+ * Returns `{ restored: true }` when a valid, answered consent (matching `consentVersion`)
+ * was found — the caller can then replay it to the data layers.
+ */
+export const initState = (config: PersistOptions): { restored: boolean } => {
+  _persist = { ...config };
+  const cookieName = config?.cookieName || DEFAULT_STORAGE_KEY;
+  const consentVersion = config?.consentVersion;
+
+  let initialData: ConsentRecord = { consent: {}, answered: false };
 
   if (typeof window !== 'undefined') {
     const stored = getCookie(cookieName);
     if (stored) {
       try {
-        initialData = JSON.parse(stored) as StoredState;
+        initialData = JSON.parse(stored) as ConsentRecord;
       } catch (e) {
         console.error('[modern-consent] Error parsing consent cookie', e);
       }
@@ -111,33 +124,56 @@ export const initState = (
 
   consentState.set(initialData.consent || {});
   hasAnswered.set(initialData.answered || false);
+  consentMeta.set({
+    consentId: initialData.consentId,
+    timestamp: initialData.timestamp,
+    version: initialData.version,
+  });
 
   // Re-prompt when consentVersion changes (GDPR: policy update invalidates prior consent)
-  if (initialData.answered && consentVersion && initialData.version !== consentVersion) {
+  const versionMismatch =
+    !!initialData.answered && !!consentVersion && initialData.version !== consentVersion;
+  if (versionMismatch) {
     hasAnswered.set(false);
     isPanelOpen.set(true);
   }
 
-  if (typeof window !== 'undefined') {
-    // Clean up previous subscriptions before creating new ones
-    _cookieUnsubs.forEach(fn => fn());
-    _cookieUnsubs = [];
-
-    const saveToCookie = () => {
-      const state: StoredState = {
-        consent: consentState.get(),
-        answered: hasAnswered.get(),
-        timestamp: Date.now(),
-        version: consentVersion,
-        consentId: generateUUID(),
-      };
-      setCookie(cookieName, JSON.stringify(state), {
-        domain: cookieDomain,
-        secure: window.location.protocol === 'https:',
-      });
-    };
-
-    _cookieUnsubs.push(consentState.subscribe(saveToCookie));
-    _cookieUnsubs.push(hasAnswered.subscribe(saveToCookie));
-  }
+  return { restored: !!initialData.answered && !versionMismatch };
 };
+
+/**
+ * Commits a consent action: ONE consentId, ONE timestamp, ONE cookie write.
+ * This is the only place that persists consent — stores are updated here too so
+ * that the in-memory state, the audit metadata and the cookie always agree.
+ */
+export function commitConsent(consent: ConsentState, answered = true): ConsentRecord {
+  const record: ConsentRecord = {
+    consent,
+    answered,
+    consentId: generateUUID(),
+    timestamp: Date.now(),
+    version: _persist.consentVersion,
+  };
+
+  consentState.set(consent);
+  hasAnswered.set(answered);
+  consentMeta.set({
+    consentId: record.consentId,
+    timestamp: record.timestamp,
+    version: record.version,
+  });
+
+  if (typeof window !== 'undefined') {
+    setCookie(_persist.cookieName || DEFAULT_STORAGE_KEY, JSON.stringify(record), {
+      domain: _persist.cookieDomain,
+      secure: window.location.protocol === 'https:',
+    });
+  }
+
+  return record;
+}
+
+/** Current persisted snapshot (consent + audit metadata). */
+export function getConsentRecord(): ConsentRecord {
+  return { consent: consentState.get(), answered: hasAnswered.get(), ...consentMeta.get() };
+}

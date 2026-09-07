@@ -1,8 +1,9 @@
-import { servicesList, consentState, hasAnswered, isPanelOpen } from './state';
-import type { ConsentState } from './state';
+import { servicesList, consentState, isPanelOpen, commitConsent, getConsentRecord } from './state';
+import type { ConsentState, ConsentRecord } from './state';
 import { activateService, clearVendorArtifacts } from './registry';
 import { emitter } from './emitter';
-import { generateUUID } from './utils/uuid';
+import { syncConsentMode } from './gcm';
+import type { GcmState } from './gcm';
 
 declare global {
   interface Window {
@@ -11,16 +12,26 @@ declare global {
   }
 }
 
+export type ConsentEventSource = 'user' | 'restore';
+
 /**
  * Always pushes consent state to `window.consentLayer` (TMS-agnostic).
  * Optionally pushes to `window.dataLayer` when `pushDataLayer` is enabled (GTM convenience).
+ *
+ * `source` is `'user'` for a fresh decision and `'restore'` when a stored consent is
+ * replayed at page load — the event name is the same so TMS triggers fire in both cases.
  */
-function pushConsentEvent(consent: ConsentState) {
+function pushConsentEvent(record: ConsentRecord, source: ConsentEventSource, gcm?: GcmState) {
   if (typeof window === 'undefined') return;
 
   const event = {
     event: 'consent_update',
-    consent_state: consent,
+    consent_state: record.consent,
+    consent_id: record.consentId,
+    consent_timestamp: record.timestamp,
+    consent_version: record.version,
+    consent_source: source,
+    ...(gcm ? { gcm } : {}),
   };
 
   // consentLayer — always active, TMS-agnostic
@@ -34,94 +45,102 @@ function pushConsentEvent(consent: ConsentState) {
   }
 }
 
-function emitConsentSaved(consent: ConsentState) {
-  emitter.emit('consent:saved', {
-    consentId: generateUUID(),
-    timestamp: Date.now(),
-    version:
-      typeof window !== 'undefined' ? window._modernConsentConfig?.consentVersion : undefined,
-    consent,
-  });
+function isConsentOnly(): boolean {
+  return typeof window !== 'undefined' && window._modernConsentConfig?.consentOnly === true;
 }
 
-export function setConsent(id: string, allowed: boolean) {
-  // Check before updating state whether this service was actively running
-  const wasPreviouslyLoaded = servicesList.get().find(s => s.id === id)?.loaded ?? false;
+/**
+ * Single entry point for every consent decision.
+ * ONE commit (cookie + consentId), ONE `consent:saved`, ONE optional reload,
+ * and one `consent:update` per vendor touched.
+ */
+function applyConsent(updates: Record<string, boolean>, options: { closePanel?: boolean } = {}) {
+  const ids = Object.keys(updates);
+  if (ids.length === 0) return;
 
-  consentState.update(s => ({ ...s, [id]: allowed }));
-  hasAnswered.set(true);
+  const list = servicesList.get();
+  const previous = consentState.get();
+  const next: ConsentState = { ...previous, ...updates };
 
-  emitter.emit('consent:update', {
-    vendor: id,
-    status: allowed ? 'granted' : 'denied',
+  // Revocations: always clear declared artifacts (also in consentOnly mode, where the TMS
+  // loaded the tag), reload only if the vendor was actually running in this page.
+  let needsReload = false;
+  ids.forEach(id => {
+    if (updates[id]) return;
+    clearVendorArtifacts(id);
+    if (list.find(s => s.id === id)?.loaded) needsReload = true;
   });
 
-  const updatedConsent = consentState.get();
-  pushConsentEvent(updatedConsent);
-  emitConsentSaved(updatedConsent);
+  const record = commitConsent(next, true);
+  if (options.closePanel) isPanelOpen.set(false);
 
-  if (allowed) {
-    activateService(id);
-    return;
-  }
+  const gcm = syncConsentMode(next);
 
-  // Only clean up and reload if the service was actively running
-  if (wasPreviouslyLoaded) {
-    clearVendorArtifacts(id);
-    const isConsentOnly =
-      typeof window !== 'undefined' && window._modernConsentConfig?.consentOnly === true;
-    if (!isConsentOnly && typeof window !== 'undefined') window.location.reload();
+  ids.forEach(id => {
+    emitter.emit('consent:update', {
+      vendor: id,
+      status: updates[id] ? 'granted' : 'denied',
+      ...(gcm ? { gcm } : {}),
+    });
+  });
+
+  pushConsentEvent(record, 'user', gcm);
+  emitter.emit('consent:saved', {
+    consentId: record.consentId!,
+    timestamp: record.timestamp!,
+    version: record.version,
+    consent: record.consent,
+    ...(gcm ? { gcm } : {}),
+  });
+
+  ids.forEach(id => {
+    if (updates[id]) activateService(id);
+  });
+
+  if (needsReload && !isConsentOnly() && typeof window !== 'undefined') {
+    window.location.reload();
   }
+}
+
+/** Set consent for a single vendor. */
+export function setConsent(id: string, allowed: boolean) {
+  applyConsent({ [id]: allowed });
+}
+
+/**
+ * Set consent for several vendors as ONE action (one consentId, one cookie write,
+ * one `consent:saved`). Used by purpose/category toggles.
+ */
+export function setConsentBatch(updates: Record<string, boolean>) {
+  applyConsent(updates);
 }
 
 export function acceptAll() {
-  const list = servicesList.get();
   const updates: Record<string, boolean> = {};
-
-  list.forEach(s => {
-    updates[s.id] = true;
-    activateService(s.id);
-  });
-
-  consentState.set(updates);
-  hasAnswered.set(true);
-  isPanelOpen.set(false);
-
-  list.forEach(s => {
-    emitter.emit('consent:update', { vendor: s.id, status: 'granted' });
-  });
-
-  pushConsentEvent(updates);
-  emitConsentSaved(updates);
+  servicesList.get().forEach(s => (updates[s.id] = true));
+  applyConsent(updates, { closePanel: true });
 }
 
 export function denyAll() {
-  const list = servicesList.get();
   const updates: Record<string, boolean> = {};
-  let needsReload = false;
+  servicesList.get().forEach(s => (updates[s.id] = false));
+  applyConsent(updates, { closePanel: true });
+}
 
-  list.forEach(s => {
-    updates[s.id] = false;
-    clearVendorArtifacts(s.id);
-    if (s.loaded) needsReload = true;
+/**
+ * Replays a stored consent at page load so that Tag Managers and listeners receive the
+ * same `consent_update` event they would get after a user decision. Nothing is persisted.
+ */
+export function restoreConsent() {
+  const record = getConsentRecord();
+  const gcm = syncConsentMode(record.consent);
+
+  pushConsentEvent(record, 'restore', gcm);
+  emitter.emit('consent:restored', {
+    consentId: record.consentId,
+    timestamp: record.timestamp,
+    version: record.version,
+    consent: record.consent,
+    ...(gcm ? { gcm } : {}),
   });
-
-  consentState.set(updates);
-  hasAnswered.set(true);
-  isPanelOpen.set(false);
-
-  list.forEach(s => {
-    emitter.emit('consent:update', { vendor: s.id, status: 'denied' });
-  });
-
-  pushConsentEvent(updates);
-  emitConsentSaved(updates);
-
-  // Reload only if at least one vendor was actively running —
-  // clears vendor scripts from memory after cookie cleanup.
-  const isConsentOnly =
-    typeof window !== 'undefined' && window._modernConsentConfig?.consentOnly === true;
-  if (needsReload && !isConsentOnly && typeof window !== 'undefined') {
-    window.location.reload();
-  }
 }

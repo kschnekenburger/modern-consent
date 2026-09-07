@@ -8,7 +8,7 @@ import {
   type ServiceMetadata,
 } from '@modernconsent/core';
 
-import { acceptAll, denyAll, setConsent } from '@modernconsent/core';
+import { acceptAll, denyAll, setConsent, setConsentBatch } from '@modernconsent/core';
 
 type WidgetMode = 'banner' | 'details';
 
@@ -655,10 +655,12 @@ export class McConsentWidget extends HTMLElement {
   }
 
   private onSetConsentForCategory(category: string, allowed: boolean) {
-    const servicesInCategory = this.services.filter(
-      s => s.category === category && s.requireConsent,
-    );
-    servicesInCategory.forEach(s => setConsent(s.id, allowed));
+    // One action for the whole purpose: one consentId, one cookie write, one consent:saved.
+    const updates: Record<string, boolean> = {};
+    this.services
+      .filter(s => s.category === category && s.requireConsent)
+      .forEach(s => (updates[s.id] = allowed));
+    setConsentBatch(updates);
     if (this.getPendingServices().length === 0) {
       isPanelOpen.set(false);
     }
@@ -759,13 +761,17 @@ export class McConsentWidget extends HTMLElement {
               `;
             }
 
+            // `undefined` means the user has not decided yet — it must read as pending,
+            // not as denied.
             const consent = this.consent[s.id];
-            const statusLabel = consent
-              ? l.statusAllowed
-              : !consent
-                ? l.statusDenied
-                : l.statusPending;
-            const statusClass = consent ? 'allowed' : !consent ? 'denied' : 'pending';
+            const statusClass: 'allowed' | 'denied' | 'pending' =
+              consent === true ? 'allowed' : consent === false ? 'denied' : 'pending';
+            const statusLabel =
+              statusClass === 'allowed'
+                ? l.statusAllowed
+                : statusClass === 'denied'
+                  ? l.statusDenied
+                  : l.statusPending;
 
             return `
               <div class="service">

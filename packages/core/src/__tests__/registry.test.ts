@@ -1,14 +1,24 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { registerService, activateService, __resetRegistry } from '../registry';
+import {
+  registerService,
+  activateService,
+  clearVendorArtifacts,
+  cookieDomainCandidates,
+  __resetRegistry,
+} from '../registry';
 import { addResolver, resolveVendor, __resetResolvers } from '../resolver';
-import { servicesList, consentState } from '../state';
+import { servicesList, consentState, hasAnswered } from '../state';
+import { __resetConsentMode } from '../gcm';
 
 describe('Registry', () => {
   beforeEach(() => {
     __resetRegistry();
     __resetResolvers();
+    __resetConsentMode();
     servicesList.set([]);
     consentState.set({});
+    hasAnswered.set(false);
+    window._modernConsentConfig = {};
     vi.clearAllMocks();
   });
 
@@ -105,7 +115,68 @@ describe('Registry', () => {
 
     const meta = servicesList.get().find(s => s.id === 'soft-service');
     expect(meta?.loaded).toBe(false);
+  });
 
-    window._modernConsentConfig = {};
+  it('pushes a GCM consent update when a vendor with stored consent declares signals', async () => {
+    window._modernConsentConfig = { consentMode: true };
+    window.dataLayer = [];
+    // @ts-expect-error — reset the stub
+    delete window.gtag;
+    consentState.set({ ga: true });
+    hasAnswered.set(true);
+
+    const loader = vi.fn().mockResolvedValue({
+      default: {
+        name: 'GA',
+        description: '',
+        category: 'Analytics',
+        requireConsent: true,
+        gcm: ['analytics_storage'],
+      },
+    });
+    registerService({ id: 'ga', category: 'Analytics', loader, config: {} });
+    await vi.waitFor(() => servicesList.get().length > 0);
+
+    const cmds = window.dataLayer.map(x => Array.from(x as ArrayLike<unknown>));
+    expect(cmds.map(c => c[1])).toEqual(['default', 'update']);
+    expect(cmds[1][2]).toMatchObject({ analytics_storage: 'granted' });
+  });
+
+  describe('clearVendorArtifacts', () => {
+    it('cookieDomainCandidates() lists host-only, configured domain and every hostname suffix', () => {
+      window._modernConsentConfig = { cookieDomain: '.example.com' };
+      // jsdom default hostname is "localhost" → only host-only + configured
+      expect(cookieDomainCandidates()).toEqual([undefined, '.example.com']);
+    });
+
+    it('expires declared cookies for every domain candidate', async () => {
+      const loader = vi.fn().mockResolvedValue({
+        default: {
+          name: 'V',
+          description: '',
+          category: 'C',
+          requireConsent: true,
+          artifacts: (cfg: { id: string }) => ['_ga', `_ga_${cfg.id}`],
+        },
+      });
+      registerService({ id: 'v', category: 'C', loader, config: { id: 'X1' } });
+      await vi.waitFor(() => servicesList.get().length > 0);
+
+      window._modernConsentConfig = { cookieDomain: '.example.com' };
+      const writes: string[] = [];
+      const spy = vi.spyOn(document, 'cookie', 'set').mockImplementation(v => {
+        writes.push(v);
+      });
+
+      clearVendorArtifacts('v');
+
+      expect(writes).toEqual([
+        '_ga=; max-age=0; path=/',
+        '_ga=; max-age=0; path=/; domain=.example.com',
+        '_ga_X1=; max-age=0; path=/',
+        '_ga_X1=; max-age=0; path=/; domain=.example.com',
+      ]);
+      spy.mockRestore();
+    });
   });
 });

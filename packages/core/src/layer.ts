@@ -1,9 +1,12 @@
 import { registerService } from './registry';
 import { addResolver, resolveVendor } from './resolver';
-import { consentState, initState, isPanelOpen } from './state';
-import type { ConsentState } from './state';
-import type { Vendor } from './registry';
+import { consentState, initState, isPanelOpen, getConsentRecord } from './state';
+import type { ConsentState, ConsentRecord } from './state';
+import type { Vendor, VendorLoader } from './registry';
 import { emitter } from './emitter';
+import { initConsentMode } from './gcm';
+import type { GcmSignal, GcmState } from './gcm';
+import { restoreConsent } from './consent';
 
 /**
  * Command can add in config
@@ -13,7 +16,17 @@ const validCommands = ['config', 'vendor'] as const;
 export interface McConfig {
   cookieDomain?: string;
   cookieName?: string;
+  /**
+   * Enable Google Consent Mode v2. The core pushes `consent default` (the four v2 signals
+   * denied) as soon as this flag is seen, then `consent update` derived from the vendors'
+   * `gcm` declarations. Requires a gtag-based vendor (google-analytics, googleads, gtm…).
+   */
   consentMode?: boolean;
+  /**
+   * Overrides for the `consent default` command pushed when `consentMode` is on.
+   * @example consentModeDefaults: { functionality_storage: 'granted', security_storage: 'granted' }
+   */
+  consentModeDefaults?: GcmState;
   /** Version string embedded in the stored consent — used for GDPR audit trails. */
   consentVersion?: string;
   /**
@@ -98,7 +111,9 @@ export interface McVendor {
   /** Called when consent is granted. Inject scripts, pixels, etc. here. */
   init?: (config?: Record<string, any>) => void;
   /** Cookie names written by this vendor — cleared when consent is revoked. */
-  artifacts?: string[];
+  artifacts?: string[] | ((config?: Record<string, any>) => string[]);
+  /** Google Consent Mode v2 signals granted while this vendor has consent. */
+  gcm?: GcmSignal[];
 }
 
 export type ConfigCommand = ['config', McConfig];
@@ -109,7 +124,11 @@ type McAPI = {
   (...args: McCommand): void;
   openPanel: () => void;
   getConsent: () => ConsentState;
+  /** Consent + audit metadata (consentId, timestamp, version) as persisted in the cookie. */
+  getConsentRecord: () => ConsentRecord;
   on: typeof emitter.on;
+  /** @internal marks the live API so a second copy of the core does not re-init. */
+  __mc?: true;
 };
 
 declare global {
@@ -118,6 +137,12 @@ declare global {
     mcLayer: McCommand[];
     modernConsent: McAPI;
   }
+}
+
+function applyConfig(payload: McConfig) {
+  window._modernConsentConfig = { ...window._modernConsentConfig, ...payload };
+  // Push `consent default` as early as possible — before any vendor setup() runs.
+  if (payload.consentMode === true) initConsentMode();
 }
 
 function handleVendor(event: McVendor) {
@@ -131,9 +156,10 @@ function handleVendor(event: McVendor) {
     setup,
     init,
     artifacts,
+    gcm,
   } = event;
 
-  let loader: import('./registry').VendorLoader;
+  let loader: VendorLoader;
 
   if (init ?? setup) {
     // Inline vendor — CDN users provide their own implementation.
@@ -145,6 +171,7 @@ function handleVendor(event: McVendor) {
       setup,
       init,
       artifacts,
+      gcm,
     });
   } else {
     // Look up via the resolver chain (builtin, CDN, or user-registered resolvers).
@@ -164,11 +191,14 @@ function handleVendor(event: McVendor) {
 
 /**
  * Initialise window.mcLayer et traite la queue éventuelle.
+ * Idempotent: a second copy of the core (e.g. CDN bundle + npm import) is a no-op.
  */
 export function initMcLayer() {
   if (typeof window === 'undefined') return;
 
   const w = window;
+  if (w.modernConsent?.__mc) return;
+
   const existingQueue = Array.isArray(w.mcLayer) ? [...w.mcLayer] : [];
 
   w._modernConsentConfig = {};
@@ -200,15 +230,17 @@ export function initMcLayer() {
     }
 
     if (command === 'config') {
-      w._modernConsentConfig = { ...w._modernConsentConfig, ...(payload as McConfig) };
+      applyConfig(payload as McConfig);
       return;
     }
 
     handleVendor(payload as McVendor);
   });
 
-  // State is initialised once after config is fully resolved from the queue
-  initState(w._modernConsentConfig);
+  // State is initialised once after config is fully resolved from the queue.
+  // If a valid consent is stored, replay it so TMS triggers and GCM fire on every page.
+  const { restored } = initState(w._modernConsentConfig);
+  if (restored) restoreConsent();
 
   // Live API
   const apiFn = (...args: McCommand) => {
@@ -222,7 +254,7 @@ export function initMcLayer() {
     if (command === 'vendor') {
       handleVendor(payload as McVendor);
     } else if (command === 'config') {
-      w._modernConsentConfig = { ...w._modernConsentConfig, ...(payload as McConfig) };
+      applyConfig(payload as McConfig);
     }
 
     if (!Array.isArray(w.mcLayer)) w.mcLayer = [];
@@ -232,6 +264,8 @@ export function initMcLayer() {
   w.modernConsent = Object.assign(apiFn, {
     openPanel: () => isPanelOpen.set(true),
     getConsent: () => consentState.get(),
+    getConsentRecord: () => getConsentRecord(),
     on: emitter.on.bind(emitter),
+    __mc: true as const,
   });
 }

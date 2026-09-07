@@ -1,8 +1,16 @@
-export type { ConsentState, ServiceMetadata } from './state.ts';
+export type { ConsentState, ServiceMetadata, ConsentMeta, ConsentRecord } from './state.ts';
 
 export { Store } from './utils/store';
 
-export { consentState, hasAnswered, servicesList, isPanelOpen, openPanel } from './state';
+export {
+  consentState,
+  hasAnswered,
+  consentMeta,
+  servicesList,
+  isPanelOpen,
+  openPanel,
+  getConsentRecord,
+} from './state';
 
 // Vendor Resolution
 export { addResolver, resolveVendor } from './resolver';
@@ -16,11 +24,19 @@ export {
   type VendorConfig,
 } from './registry';
 
-export { setConsent, acceptAll, denyAll } from './consent';
+export { setConsent, setConsentBatch, acceptAll, denyAll, restoreConsent } from './consent';
+
+// Google Consent Mode v2
+export { ensureGtag, computeGcmState, syncConsentMode, type GcmSignal, type GcmState } from './gcm';
 
 export type { McConfig, McVendor, McCommand, ConfigCommand, VendorCommand } from './layer';
 
-export { emitter, type ConsentEventMap } from './emitter';
+export {
+  emitter,
+  type ConsentEventMap,
+  type ConsentSavedEvent,
+  type ConsentRestoredEvent,
+} from './emitter';
 export { generateUUID } from './utils/uuid';
 export { initMcLayer } from './layer';
 

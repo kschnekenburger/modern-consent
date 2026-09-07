@@ -18,8 +18,10 @@ import {
   hasAnswered,
   servicesList,
   setConsent,
+  setConsentBatch,
   acceptAll,
   denyAll,
+  getConsentRecord,
   emitter,
 } from '@modernconsent/core';
 
@@ -28,10 +30,14 @@ consentState.get(); // { 'google-analytics': true, 'meta-pixel': false }
 hasAnswered.get(); // true
 servicesList.get(); // [{ id, name, description, category, loaded, requireConsent }]
 
-// Mutate consent
+// Mutate consent — each call is ONE action: one consentId, one cookie write, one consent:saved
 setConsent('google-analytics', true);
+setConsentBatch({ 'google-analytics': true, 'meta-pixel': false });
 acceptAll();
 denyAll();
+
+// Audit metadata of the last action, as persisted in the cookie
+getConsentRecord(); // { consent, answered, consentId, timestamp, version }
 
 // Subscribe to changes
 const unsub = consentState.subscribe(state => {
@@ -44,7 +50,11 @@ emitter.on('consent:update', data => {
 });
 
 emitter.on('consent:saved', data => {
-  console.log(data.consentId, data.timestamp, data.consent);
+  console.log(data.consentId, data.timestamp, data.consent); // same consentId as the cookie
+});
+
+emitter.on('consent:restored', data => {
+  // stored consent replayed at page load (nothing persisted)
 });
 ```
 
@@ -52,16 +62,17 @@ emitter.on('consent:saved', data => {
 
 All options are passed via `window.modernConsent('config', { ... })`:
 
-| Option              | Type                    | Default              | Description                                                               |
-| ------------------- | ----------------------- | -------------------- | ------------------------------------------------------------------------- |
-| `cookieName`        | `string`                | `'mc_consent_state'` | Name of the consent cookie                                                |
-| `cookieDomain`      | `string`                | —                    | Domain scope (e.g. `.example.com`)                                        |
-| `consentMode`       | `boolean`               | `false`              | Enable Google Consent Mode v2                                             |
-| `consentVersion`    | `string`                | —                    | Version for GDPR audit. Changing it re-prompts the user                   |
-| `consentOnly`       | `boolean`               | `false`              | Consent-only mode — no vendor `init()` calls. For Tag Manager integration |
-| `pushDataLayer`     | `boolean`               | `false`              | Push events to `window.dataLayer` (GTM)                                   |
-| `displayMode`       | `'vendor' \| 'purpose'` | `'vendor'`           | How the widget displays controls                                          |
-| `functionalPurpose` | `boolean`               | `false`              | Show mandatory "Site operation" block                                     |
+| Option                | Type                    | Default              | Description                                                               |
+| --------------------- | ----------------------- | -------------------- | ------------------------------------------------------------------------- |
+| `cookieName`          | `string`                | `'mc_consent_state'` | Name of the consent cookie                                                |
+| `cookieDomain`        | `string`                | —                    | Domain scope (e.g. `.example.com`)                                        |
+| `consentMode`         | `boolean`               | `false`              | Google Consent Mode v2: core pushes `consent default` + derived `update`  |
+| `consentModeDefaults` | `GcmState`              | —                    | Overrides for the `consent default` command                               |
+| `consentVersion`      | `string`                | —                    | Version for GDPR audit. Changing it re-prompts the user                   |
+| `consentOnly`         | `boolean`               | `false`              | Consent-only mode — no vendor `init()` calls. For Tag Manager integration |
+| `pushDataLayer`       | `boolean`               | `false`              | Push events to `window.dataLayer` (GTM)                                   |
+| `displayMode`         | `'vendor' \| 'purpose'` | `'vendor'`           | How the widget displays controls                                          |
+| `functionalPurpose`   | `boolean`               | `false`              | Show mandatory "Site operation" block                                     |
 
 ## Consent-Only Mode
 
@@ -74,11 +85,14 @@ window.modernConsent('config', {
 });
 ```
 
+On every page load with a valid stored consent, the core replays a `consent_update` event (`consent_source: 'restore'`) to `consentLayer` / `dataLayer`, so Tag Manager triggers fire again without a new user action.
+
 Integration points:
 
 ```javascript
 // Read state
 window.modernConsent.getConsent();
+window.modernConsent.getConsentRecord(); // + consentId, timestamp, version
 
 // Listen to changes
 window.modernConsent.on('consent:update', e => {
@@ -87,6 +101,8 @@ window.modernConsent.on('consent:update', e => {
 
 // consentLayer (always active)
 window.consentLayer;
+// [{ event: 'consent_update', consent_state, consent_id, consent_timestamp,
+//    consent_version, consent_source: 'user' | 'restore', gcm? }]
 
 // dataLayer (opt-in)
 window.dataLayer;
@@ -106,13 +122,14 @@ window.dataLayer;
 
 ## Public API
 
-| Method                | Returns        | Description            |
-| --------------------- | -------------- | ---------------------- |
-| `('config', options)` | —              | Merge configuration    |
-| `('vendor', vendor)`  | —              | Register a vendor      |
-| `.openPanel()`        | —              | Open the consent panel |
-| `.getConsent()`       | `ConsentState` | Current consent state  |
-| `.on(event, cb)`      | `() => void`   | Subscribe to events    |
+| Method                | Returns         | Description                                   |
+| --------------------- | --------------- | --------------------------------------------- |
+| `('config', options)` | —               | Merge configuration                           |
+| `('vendor', vendor)`  | —               | Register a vendor                             |
+| `.openPanel()`        | —               | Open the consent panel                        |
+| `.getConsent()`       | `ConsentState`  | Current consent state                         |
+| `.getConsentRecord()` | `ConsentRecord` | Consent + `consentId`, `timestamp`, `version` |
+| `.on(event, cb)`      | `() => void`    | Subscribe to events                           |
 
 ## Stores
 
@@ -124,13 +141,14 @@ import { consentState, hasAnswered, servicesList, isPanelOpen } from '@moderncon
 // Read
 consentState.get();
 
-// Write
-consentState.set({ 'my-vendor': true });
-
 // Subscribe (fires immediately with current value)
 const unsub = consentState.subscribe(value => { ... });
 unsub(); // cleanup
 ```
+
+> Writing to `consentState` / `hasAnswered` directly does **not** persist anything and emits no event.
+> Use `setConsent`, `setConsentBatch`, `acceptAll` or `denyAll` — they are the only entry points
+> that write the cookie and generate the audit `consentId`.
 
 ## Related Packages
 

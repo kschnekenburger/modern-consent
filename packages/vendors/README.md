@@ -1,6 +1,6 @@
 # @modernconsent/vendors
 
-24 built-in vendor modules for [ModernConsent](https://github.com/kschnekenburger/modern-consent). Each vendor is lazy-loaded on demand — zero vendor code is bundled unless activated.
+24 built-in vendor modules for [ModernConsent](https://github.com/kschnekenburger/modern-consent). Each vendor is a small standalone module (1–3 KB) fetched at registration; the third-party script itself is only loaded once the user consents.
 
 All vendors include **fr/en translations** for purpose labels (used in `displayMode: 'purpose'`).
 
@@ -102,9 +102,10 @@ window.modernConsent('vendor', {
   description: 'Our internal analytics tool.',
   category: 'Analytics',
   requireConsent: true,
-  artifacts: ['_mt_id', '_mt_session'],
+  artifacts: ['_mt_id', '_mt_session'], // or (config) => string[]
+  gcm: ['analytics_storage'], // optional: Google Consent Mode v2 signals
   setup(config) {
-    // Runs at page load (e.g. set consent defaults)
+    // Runs at page load, before any consent decision
   },
   init(config) {
     // Runs when consent is granted
@@ -117,14 +118,28 @@ window.modernConsent('vendor', {
 
 ## Vendor Lifecycle
 
-Each vendor can implement two hooks:
+Each vendor can implement two hooks and two declarations:
 
-| Hook            | When                        | Use case                                                       |
-| --------------- | --------------------------- | -------------------------------------------------------------- |
-| `setup(config)` | Immediately at registration | Set consent defaults (e.g. Google Consent Mode `default deny`) |
-| `init(config)`  | When consent is granted     | Load scripts, initialize SDKs                                  |
+| Member          | When                        | Use case                                                              |
+| --------------- | --------------------------- | --------------------------------------------------------------------- |
+| `setup(config)` | Immediately at registration | Install stubs / queues (e.g. the shared `gtag` stub)                  |
+| `init(config)`  | When consent is granted     | Load scripts, initialize SDKs                                         |
+| `artifacts`     | On revocation               | Cookie names to expire (string[] or `(config) => string[]`)           |
+| `gcm`           | With `consentMode: true`    | Consent Mode v2 signals the core grants while this vendor has consent |
 
 In **Consent-Only mode** (`consentOnly: true`), `init()` is never called — only `setup()` runs.
+
+### Google Consent Mode v2
+
+Vendors **must not** call `gtag('consent', ...)` themselves. They declare their signals and the core pushes `consent default` / `consent update`:
+
+| Vendor             | `gcm`                                    |
+| ------------------ | ---------------------------------------- |
+| `google-analytics` | `['analytics_storage']`                  |
+| `googleads`        | `['ad_storage']`                         |
+| `gcmads`           | `['ad_user_data', 'ad_personalization']` |
+
+gtag-based vendors share one stub via `ensureGtag()` (`src/utils/gtag.ts`). The stub pushes the `arguments` object, as gtag.js ignores commands pushed as plain arrays. The `gtag('config', ID)` command is issued in `init()`, never in `setup()`, so a tag cannot fire before consent even when `gtag.js` is already present on the page.
 
 ## Related Packages
 

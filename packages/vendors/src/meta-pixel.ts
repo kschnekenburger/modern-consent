@@ -24,6 +24,7 @@ const MetaPixel: Vendor<MetaPixelConfig> = {
   description: 'Mesure les conversions et personnalise les publicités Facebook/Instagram.',
   ...PURPOSE_ADS,
   requireConsent: true,
+  artifacts: ['_fbp', '_fbc'],
   init: (config: MetaPixelConfig) => {
     if (!config?.pixelId) return;
 

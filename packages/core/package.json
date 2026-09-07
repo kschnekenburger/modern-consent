@@ -21,7 +21,9 @@
     "README.md",
     "LICENSE"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/index.js"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",

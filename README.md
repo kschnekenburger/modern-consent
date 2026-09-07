@@ -2,12 +2,13 @@
 
 A modern, lightweight, modular cookie consent manager (CMP) for the web.
 
-Built as an alternative to monolithic solutions like TarteAuCitron. ModernConsent splits vendors into standalone modules loaded on demand — zero vendor code is bundled unless activated.
+Built as an alternative to monolithic solutions like TarteAuCitron. ModernConsent splits vendors into standalone modules: only a tiny vendor definition (1–3 KB, name/description/`setup()`) is fetched at registration, and the third-party script itself is never loaded until the user consents.
 
-- **~20 KB** CDN bundle (core + widget, gzipped ~7 KB)
-- **24 built-in vendors** (analytics, ads, support), each lazy-loaded
-- **GDPR-compliant** with audit trails, consent versioning and cookie cleanup
-- **Google Consent Mode v2** support
+- **~32 KB** CDN bundle (core + widget, ~9 KB gzipped)
+- **24 built-in vendors** (analytics, ads, support), third-party scripts loaded only on consent
+- **GDPR-compliant** with a consistent audit trail (one `consentId` per action, identical in the cookie and in events), consent versioning and cookie cleanup
+- **Google Consent Mode v2** handled centrally by the core (`consent default` + derived `consent update`)
+- **Consent replay on every page load** — Tag Managers receive `consent_update` again, so tags can re-fire without a new user action
 - **Web Component UI** (`<mc-consent-widget>`) with Shadow DOM
 - **Framework-agnostic** — works with any stack
 - **Consent-Only mode** for Tag Manager integration (GTM, TagCommander)
@@ -89,18 +90,19 @@ window.modernConsent('vendor', {
 
 All options are passed via `window.modernConsent('config', { ... })`.
 
-| Option              | Type                                      | Default              | Description                                                               |
-| ------------------- | ----------------------------------------- | -------------------- | ------------------------------------------------------------------------- |
-| `cookieName`        | `string`                                  | `'mc_consent_state'` | Name of the consent cookie                                                |
-| `cookieDomain`      | `string`                                  | —                    | Domain for cookie storage (e.g. `.example.com`)                           |
-| `consentMode`       | `boolean`                                 | `false`              | Enable Google Consent Mode v2                                             |
-| `consentVersion`    | `string`                                  | —                    | Version string for GDPR audit trail. Changing it re-prompts the user      |
-| `cdnBase`           | `string`                                  | —                    | Base URL for CDN vendor loading                                           |
-| `consentOnly`       | `boolean`                                 | `false`              | Consent-only mode (no vendor `init()` calls). For Tag Manager integration |
-| `pushDataLayer`     | `boolean`                                 | `false`              | Also push consent events to `window.dataLayer` (GTM convenience)          |
-| `displayMode`       | `'vendor' \| 'purpose'`                   | `'vendor'`           | How the details panel displays controls                                   |
-| `functionalPurpose` | `boolean`                                 | `false`              | Show a mandatory "Site operation" block in the details panel              |
-| `purposes`          | `Record<string, { label, description? }>` | —                    | Custom purpose labels (fallback for vendors without `purposeLabel`)       |
+| Option                | Type                                                | Default              | Description                                                                 |
+| --------------------- | --------------------------------------------------- | -------------------- | --------------------------------------------------------------------------- |
+| `cookieName`          | `string`                                            | `'mc_consent_state'` | Name of the consent cookie                                                  |
+| `cookieDomain`        | `string`                                            | —                    | Domain for cookie storage (e.g. `.example.com`)                             |
+| `consentMode`         | `boolean`                                           | `false`              | Enable Google Consent Mode v2 (see below)                                   |
+| `consentModeDefaults` | `Partial<Record<GcmSignal, 'granted' \| 'denied'>>` | —                    | Overrides for the `consent default` command (e.g. grant `security_storage`) |
+| `consentVersion`      | `string`                                            | —                    | Version string for GDPR audit trail. Changing it re-prompts the user        |
+| `cdnBase`             | `string`                                            | —                    | Base URL for CDN vendor loading                                             |
+| `consentOnly`         | `boolean`                                           | `false`              | Consent-only mode (no vendor `init()` calls). For Tag Manager integration   |
+| `pushDataLayer`       | `boolean`                                           | `false`              | Also push consent events to `window.dataLayer` (GTM convenience)            |
+| `displayMode`         | `'vendor' \| 'purpose'`                             | `'vendor'`           | How the details panel displays controls                                     |
+| `functionalPurpose`   | `boolean`                                           | `false`              | Show a mandatory "Site operation" block in the details panel                |
+| `purposes`            | `Record<string, { label, description? }>`           | —                    | Custom purpose labels (fallback for vendors without `purposeLabel`)         |
 
 ### Consent Versioning
 
@@ -111,6 +113,32 @@ window.modernConsent('config', {
   consentVersion: 'v2', // bump this when your cookie policy changes
 });
 ```
+
+### Google Consent Mode v2
+
+With `consentMode: true`, the core owns the whole gtag consent lifecycle — vendors only declare which signals they depend on:
+
+1. As soon as the flag is read from the queue, the core installs the shared `gtag` stub and pushes **one** `consent default` with the four v2 signals denied (`ad_storage`, `analytics_storage`, `ad_user_data`, `ad_personalization`). Use `consentModeDefaults` to override (e.g. grant `security_storage`).
+2. Each vendor declares `gcm: [...]` (built-ins: `google-analytics` → `analytics_storage`, `googleads` → `ad_storage`, `gcmads` → `ad_user_data` + `ad_personalization`).
+3. A signal is **granted** when at least one vendor declaring it has consent, **denied** otherwise. The core pushes `consent update` whenever the derived state changes: on a user decision, when a vendor module loads with a stored consent, and on page reload.
+
+```javascript
+window.modernConsent('config', {
+  consentMode: true,
+  consentModeDefaults: { security_storage: 'granted' }, // optional
+});
+
+// Custom vendor participating in Consent Mode
+window.modernConsent('vendor', {
+  name: 'my-google-tag',
+  gcm: ['analytics_storage'],
+  init() {
+    /* load gtag.js */
+  },
+});
+```
+
+The derived state is also exposed as `gcm` on `consent:saved`, `consent:restored` and on the `consent_update` data layer event.
 
 ### Consent-Only Mode (Tag Manager)
 
@@ -125,12 +153,18 @@ window.modernConsent('config', {
 
 The CMP writes consent decisions to cookies and emits events. Your Tag Manager reads the state and decides which tags to fire.
 
+**Consent is replayed on every page load.** When a valid stored consent exists (answered, and `consentVersion` unchanged), the core pushes the same `consent_update` event to `consentLayer` / `dataLayer` during initialization, with `consent_source: 'restore'`. Tags configured to fire on `consent_update` therefore re-fire on each page without a new user action.
+
 **Integration points:**
 
 ```javascript
 // Read consent state
 window.modernConsent.getConsent();
 // → { 'google-analytics': true, 'meta-pixel': false }
+
+// Read consent + audit metadata (as persisted in the cookie)
+window.modernConsent.getConsentRecord();
+// → { consent: {...}, answered: true, consentId: 'uuid', timestamp: 1711468800000, version: 'v1' }
 
 // Listen to changes
 window.modernConsent.on('consent:update', e => {
@@ -139,12 +173,14 @@ window.modernConsent.on('consent:update', e => {
 
 // consentLayer (always active, TMS-agnostic)
 window.consentLayer;
-// → [{ event: 'consent_update', consent_state: { ... } }]
+// → [{ event: 'consent_update', consent_state: { ... }, consent_id, consent_timestamp,
+//      consent_version, consent_source: 'user' | 'restore', gcm? }]
 
-// dataLayer (opt-in via pushDataLayer: true)
+// dataLayer (opt-in via pushDataLayer: true) — same events
 window.dataLayer;
-// → [{ event: 'consent_update', consent_state: { ... } }]
 ```
+
+> Listeners registered with `.on()` after the library has initialized will not receive the `consent:restored` event of the current page — read `getConsentRecord()` (or the `consentLayer` array) for the initial state instead.
 
 ---
 
@@ -239,9 +275,10 @@ window.modernConsent('vendor', {
   description: 'Our internal analytics tool.',
   category: 'Analytics',
   requireConsent: true,
-  artifacts: ['_mt_id', '_mt_session'],
+  artifacts: ['_mt_id', '_mt_session'], // or (config) => string[]
+  gcm: ['analytics_storage'], // optional: Consent Mode v2 signals (see above)
   setup(config) {
-    // Runs immediately at page load (e.g. set consent defaults)
+    // Runs immediately at page load (before any consent decision)
   },
   init(config) {
     // Runs when consent is granted (inject scripts here)
@@ -273,25 +310,33 @@ window.modernConsent('vendor', {
 
 After initialization, `window.modernConsent` exposes:
 
-| Method                 | Returns        | Description                                |
-| ---------------------- | -------------- | ------------------------------------------ |
-| `('config', options)`  | —              | Merge configuration                        |
-| `('vendor', vendor)`   | —              | Register a vendor                          |
-| `.openPanel()`         | —              | Open the consent panel                     |
-| `.getConsent()`        | `ConsentState` | Get current consent state                  |
-| `.on(event, callback)` | `() => void`   | Subscribe to events (returns unsubscriber) |
+| Method                 | Returns         | Description                                   |
+| ---------------------- | --------------- | --------------------------------------------- |
+| `('config', options)`  | —               | Merge configuration                           |
+| `('vendor', vendor)`   | —               | Register a vendor                             |
+| `.openPanel()`         | —               | Open the consent panel                        |
+| `.getConsent()`        | `ConsentState`  | Get current consent state                     |
+| `.getConsentRecord()`  | `ConsentRecord` | Consent + `consentId`, `timestamp`, `version` |
+| `.on(event, callback)` | `() => void`    | Subscribe to events (returns unsubscriber)    |
+
+From the npm package, `setConsent(id, allowed)`, `setConsentBatch({ id: allowed, ... })`, `acceptAll()` and `denyAll()` are also exported. Every one of them is **one action**: one `consentId`, one cookie write, one `consent:saved`, at most one page reload.
 
 ### Events
 
 ```javascript
-// Emitted for each vendor consent change
+// Emitted for each vendor whose status changed in an action
 window.modernConsent.on('consent:update', data => {
-  // { vendor: 'google-analytics', status: 'granted' | 'denied' }
+  // { vendor: 'google-analytics', status: 'granted' | 'denied', gcm? }
 });
 
-// Emitted when consent is saved (with GDPR audit data)
+// Emitted once per user action (with GDPR audit data — same consentId as the cookie)
 window.modernConsent.on('consent:saved', data => {
-  // { consentId: 'uuid', timestamp: 1234567890, version: 'v1', consent: { ... } }
+  // { consentId: 'uuid', timestamp: 1234567890, version: 'v1', consent: { ... }, gcm? }
+});
+
+// Emitted at page load when a stored, still-valid consent is replayed
+window.modernConsent.on('consent:restored', data => {
+  // { consentId?, timestamp?, version?, consent: { ... }, gcm? }
 });
 ```
 
@@ -299,7 +344,7 @@ window.modernConsent.on('consent:saved', data => {
 
 ## Built-in Vendors
 
-All vendors are lazy-loaded — zero code is bundled unless activated. Each vendor includes **fr/en translations** for purpose labels.
+Vendor definitions are small standalone modules (1–3 KB) fetched at registration; the third-party script is only loaded once the user consents. Each vendor includes **fr/en translations** for purpose labels.
 
 <details>
 <summary><strong>Analytics (13 vendors)</strong></summary>
@@ -368,9 +413,11 @@ The consent cookie stores a JSON object:
 }
 ```
 
-- `consentId` — unique UUID per consent action (GDPR audit trail)
+- `consentId` — unique UUID per consent action (GDPR audit trail). The same value is emitted in `consent:saved` and in the `consent_update` data layer event.
 - `timestamp` — when consent was last given
 - `version` — matches `consentVersion` from config
+
+Revoking a vendor expires its declared `artifacts` cookies for the host, the configured `cookieDomain` and every suffix of the current hostname (e.g. `.www.example.com`, `.example.com`), so cookies set on the eTLD+1 by tags such as GA are removed as well.
 
 ---
 
@@ -378,9 +425,9 @@ The consent cookie stores a JSON object:
 
 | Package                  | Description                                      | Size                                      |
 | ------------------------ | ------------------------------------------------ | ----------------------------------------- |
-| `@modernconsent/core`    | Consent engine, state, events, cookie            | ~14 KB                                    |
-| `@modernconsent/widget`  | Web Component UI (`consent.js` = CDN standalone) | ~28 KB (CDN bundle with core, ~8 KB gzip) |
-| `@modernconsent/vendors` | 24 built-in vendor modules                       | ~1-2 KB each                              |
+| `@modernconsent/core`    | Consent engine, state, events, cookie, GCM v2    | ~19 KB (~5 KB gzip)                       |
+| `@modernconsent/widget`  | Web Component UI (`consent.js` = CDN standalone) | ~32 KB (CDN bundle with core, ~9 KB gzip) |
+| `@modernconsent/vendors` | 24 built-in vendor modules                       | ~1-3 KB each                              |
 
 ---
 
