@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { consentState, hasAnswered, servicesList, isPanelOpen, initState } from '../state';
-import { acceptAll, denyAll, setConsent, setConsentBatch, restoreConsent } from '../consent';
+import {
+  acceptAll,
+  denyAll,
+  setConsent,
+  setConsentBatch,
+  restoreConsent,
+  __resetPendingReload,
+} from '../consent';
 import { emitter } from '../emitter';
 import * as registry from '../registry';
 
@@ -51,6 +58,7 @@ describe('Consent Logic', () => {
   beforeEach(() => {
     document.cookie = `${COOKIE}=;expires=${new Date(0).toUTCString()};path=/`;
     window._modernConsentConfig = {};
+    __resetPendingReload();
     initState({ cookieName: COOKIE, consentVersion: 'v1' });
     isPanelOpen.set(true);
     servicesList.set([service('service1'), service('service2')]);
@@ -82,10 +90,24 @@ describe('Consent Logic', () => {
     expect(registry.activateService).not.toHaveBeenCalled();
   });
 
-  it('should reload when denying a service that was already loaded', () => {
+  it('should reload immediately when denying a loaded service while the panel is closed', () => {
+    isPanelOpen.set(false);
     servicesList.set([service('service1', true), service('service2')]);
     const reload = withMockedReload(() => setConsent('service1', false));
     expect(consentState.get()['service1']).toBe(false);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('defers the reload while the panel is open, fires once when it closes', () => {
+    servicesList.set([service('service1', true), service('service2', true)]);
+    const reload = withMockedReload(() => {
+      // Two revocations during one customization session: no reload yet
+      setConsent('service1', false);
+      setConsent('service2', false);
+      expect(window.location.reload).not.toHaveBeenCalled();
+      // User closes the panel → single coalesced reload
+      isPanelOpen.set(false);
+    });
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
@@ -149,6 +171,7 @@ describe('Consent Logic', () => {
   });
 
   it('setConsentBatch is one action: one cookie write, one consentId, one reload', () => {
+    isPanelOpen.set(false);
     servicesList.set([service('service1', true), service('service2', true)]);
     const saved = vi.fn();
     const off = emitter.on('consent:saved', saved);
@@ -191,6 +214,14 @@ describe('Consent Logic', () => {
     servicesList.set([service('service1', true)]);
     const reload = withMockedReload(() => setConsent('service1', false));
     expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('denyAll reloads immediately: it closes the panel as part of the action', () => {
+    servicesList.set([service('service1', true)]);
+    expect(isPanelOpen.get()).toBe(true);
+    const reload = withMockedReload(() => denyAll());
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(isPanelOpen.get()).toBe(false);
   });
 
   it('should NOT reload on denyAll in consentOnly mode', () => {

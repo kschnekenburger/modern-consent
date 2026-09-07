@@ -49,6 +49,41 @@ function isConsentOnly(): boolean {
   return typeof window !== 'undefined' && window._modernConsentConfig?.consentOnly === true;
 }
 
+let _reloadPending = false;
+let _reloadUnsub: (() => void) | null = null;
+
+/**
+ * Reloads the page to flush a revoked vendor's script from memory — but never
+ * under the user's feet: while the consent panel is open (the user may still be
+ * customizing), the reload is deferred until the panel closes. Multiple
+ * revocations coalesce into a single reload.
+ */
+function scheduleReload() {
+  if (isConsentOnly() || typeof window === 'undefined') return;
+
+  if (!isPanelOpen.get()) {
+    window.location.reload();
+    return;
+  }
+
+  if (_reloadPending) return;
+  _reloadPending = true;
+  _reloadUnsub = isPanelOpen.subscribe(open => {
+    if (open || !_reloadPending) return;
+    _reloadPending = false;
+    _reloadUnsub?.();
+    _reloadUnsub = null;
+    window.location.reload();
+  });
+}
+
+/** @internal — test helper only */
+export function __resetPendingReload() {
+  _reloadPending = false;
+  _reloadUnsub?.();
+  _reloadUnsub = null;
+}
+
 /**
  * Single entry point for every consent decision.
  * ONE commit (cookie + consentId), ONE `consent:saved`, ONE optional reload,
@@ -97,9 +132,7 @@ function applyConsent(updates: Record<string, boolean>, options: { closePanel?: 
     if (updates[id]) activateService(id);
   });
 
-  if (needsReload && !isConsentOnly() && typeof window !== 'undefined') {
-    window.location.reload();
-  }
+  if (needsReload) scheduleReload();
 }
 
 /** Set consent for a single vendor. */

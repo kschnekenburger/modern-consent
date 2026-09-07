@@ -140,6 +140,12 @@ function escapeHtml(str: string): string {
  */
 const STYLES = `
   :host {
+    /* Style isolation: Shadow DOM blocks the page's selectors but NOT inheritance —
+       letter-spacing, line-height, font-weight, text-transform… flow in from <body>.
+       'all: initial' severs that inheritance. Custom properties (--mc-*) are exempt
+       from 'all' by spec, so theming still cascades in. */
+    all: initial;
+
     --_primary: var(--mc-primary, #111827);
     --_primary-hover: var(--mc-primary-hover, color-mix(in srgb, var(--_primary) 85%, black));
     --_primary-text: var(--mc-primary-text, #fff);
@@ -182,6 +188,20 @@ const STYLES = `
   }
 
   .modal {
+    /* Base typography is (re)declared here, not only on :host: document rules that
+       target the host element directly (e.g. a site-wide '* { font-family: X !important }'
+       reset) beat :host rules and would inherit into the whole panel. Rules on .modal
+       live inside the shadow tree and cannot be overridden by the page. */
+    font-family: var(--_font);
+    font-size: 14px;
+    font-weight: 400;
+    font-style: normal;
+    line-height: 1.5;
+    letter-spacing: normal;
+    text-transform: none;
+    text-align: left;
+    color: #111827;
+
     background: #ffffff;
     border-radius: var(--_radius);
     max-width: 640px;
@@ -461,6 +481,13 @@ export class McConsentWidget extends HTMLElement {
   private consent: ConsentState = {};
   private answered = false;
   private panelOpen = false;
+  /**
+   * Whether the user had already answered when the panel was opened.
+   * True = re-customization session: never auto-close on individual toggles,
+   * the user closes explicitly (close/back/accept-all/deny-all).
+   * False = first visit: auto-close once every pending service is decided.
+   */
+  private _entryAnswered = false;
 
   constructor() {
     super();
@@ -510,8 +537,9 @@ export class McConsentWidget extends HTMLElement {
       isPanelOpen.subscribe(open => {
         const previous = this.panelOpen;
         this.panelOpen = open;
-        if (open && !previous && this.answered) {
-          this.mode = 'details';
+        if (open && !previous) {
+          this._entryAnswered = this.answered;
+          if (this.answered) this.mode = 'details';
         }
         this.scheduleRender();
       }),
@@ -649,7 +677,9 @@ export class McConsentWidget extends HTMLElement {
 
   private onSetConsentForService(id: string, allowed: boolean) {
     setConsent(id, allowed);
-    if (this.getPendingServices().filter(s => s.id !== id).length === 0) {
+    // First visit only: close once every pending service is decided. In a
+    // re-customization session the panel stays open until the user closes it.
+    if (!this._entryAnswered && this.getPendingServices().filter(s => s.id !== id).length === 0) {
       isPanelOpen.set(false);
     }
   }
@@ -661,7 +691,7 @@ export class McConsentWidget extends HTMLElement {
       .filter(s => s.category === category && s.requireConsent)
       .forEach(s => (updates[s.id] = allowed));
     setConsentBatch(updates);
-    if (this.getPendingServices().length === 0) {
+    if (!this._entryAnswered && this.getPendingServices().length === 0) {
       isPanelOpen.set(false);
     }
   }
