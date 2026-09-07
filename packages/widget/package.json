@@ -1,6 +1,6 @@
 {
   "name": "@modernconsent/widget",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Web Component cookie consent widget — standalone IIFE bundle",
   "type": "module",
   "main": "./dist/consent.js",
