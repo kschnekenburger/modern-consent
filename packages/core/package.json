@@ -1,6 +1,6 @@
 {
   "name": "@modernconsent/core",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "A modern, lightweight consent management library",
   "type": "module",
   "main": "./dist/index.js",

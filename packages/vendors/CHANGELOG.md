@@ -1,5 +1,12 @@
 # @modernconsent/vendors
 
+## 3.0.0
+
+### Patch Changes
+
+- Updated dependencies [4193b10]
+  - @modernconsent/core@3.0.0
+
 ## 2.0.0
 
 ### Minor Changes
