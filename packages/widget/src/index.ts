@@ -151,6 +151,10 @@ const STYLES = `
     --_primary-text: var(--mc-primary-text, #fff);
     --_radius: var(--mc-radius, 12px);
     --_font: var(--mc-font, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+    /* Single type-scale base: every font-size below derives from it via calc(),
+       so integrators rescale the whole widget with one --mc-font-size. calc(var())
+       instead of em avoids compounding through nested elements. */
+    --_fs: var(--mc-font-size, 15px);
 
     position: fixed;
     inset: 0;
@@ -193,7 +197,7 @@ const STYLES = `
        reset) beat :host rules and would inherit into the whole panel. Rules on .modal
        live inside the shadow tree and cannot be overridden by the page. */
     font-family: var(--_font);
-    font-size: 14px;
+    font-size: var(--_fs);
     font-weight: 400;
     font-style: normal;
     line-height: 1.5;
@@ -223,7 +227,7 @@ const STYLES = `
   }
 
   .title {
-    font-size: 17px;
+    font-size: calc(var(--_fs) * 1.2); /* 18px */
     font-weight: 700;
     margin: 0;
     color: #111827;
@@ -231,7 +235,7 @@ const STYLES = `
   }
 
   .subtitle {
-    font-size: 13px;
+    font-size: calc(var(--_fs) * 0.93); /* 14px */
     color: #6b7280;
     margin: 6px 0 0;
     line-height: 1.5;
@@ -242,7 +246,7 @@ const STYLES = `
     border: none;
     background: #f3f4f6;
     cursor: pointer;
-    font-size: 16px;
+    font-size: calc(var(--_fs) * 1.07); /* 16px */
     line-height: 1;
     padding: 6px 8px;
     color: #6b7280;
@@ -254,7 +258,7 @@ const STYLES = `
   .body {
     padding: 0 24px 16px;
     overflow: auto;
-    font-size: 13px;
+    font-size: calc(var(--_fs) * 0.93); /* 14px */
     color: #4b5563;
     line-height: 1.6;
   }
@@ -280,7 +284,7 @@ const STYLES = `
     appearance: none;
     border-radius: 999px;
     padding: 9px 18px;
-    font-size: 13px;
+    font-size: calc(var(--_fs) * 0.93); /* 14px */
     font-weight: 500;
     border: 1px solid transparent;
     cursor: pointer;
@@ -351,7 +355,7 @@ const STYLES = `
   }
 
   .category-title {
-    font-size: 13px;
+    font-size: calc(var(--_fs) * 0.93); /* 14px */
     font-weight: 600;
     color: #111827;
   }
@@ -374,15 +378,15 @@ const STYLES = `
   .service-main { flex: 1; }
 
   .service-name {
-    font-size: 13px;
+    font-size: calc(var(--_fs) * 0.93); /* 14px */
     font-weight: 500;
     color: #111827;
     margin-bottom: 2px;
   }
 
-  .service-description { font-size: 12px; color: #6b7280; line-height: 1.4; }
+  .service-description { font-size: calc(var(--_fs) * 0.87); color: #6b7280; line-height: 1.4; } /* 13px */
 
-  .service-status { font-size: 11px; margin-top: 4px; font-weight: 500; }
+  .service-status { font-size: calc(var(--_fs) * 0.8); margin-top: 4px; font-weight: 500; } /* 12px */
   .service-status.allowed { color: #059669; }
   .service-status.denied { color: #dc2626; }
   .service-status.pending { color: #d97706; }
@@ -390,7 +394,7 @@ const STYLES = `
   .service-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
   .chip {
-    font-size: 11px;
+    font-size: calc(var(--_fs) * 0.8); /* 12px */
     padding: 3px 10px;
     border-radius: 999px;
     border: 1px solid #e5e7eb;
@@ -414,7 +418,7 @@ const STYLES = `
   }
 
   .category-status {
-    font-size: 11px;
+    font-size: calc(var(--_fs) * 0.8); /* 12px */
     font-weight: 500;
   }
   .category-status.allowed { color: #059669; }
@@ -422,7 +426,7 @@ const STYLES = `
   .category-status.pending { color: #d97706; }
 
   .purpose-description {
-    font-size: 12px;
+    font-size: calc(var(--_fs) * 0.87); /* 13px */
     color: #6b7280;
     margin: 0 0 8px;
     line-height: 1.5;
@@ -433,12 +437,12 @@ const STYLES = `
     border-top: none;
   }
   .purpose-service-info .service-name {
-    font-size: 12px;
+    font-size: calc(var(--_fs) * 0.87); /* 13px */
     color: #4b5563;
     font-weight: 400;
   }
   .purpose-service-info .service-description {
-    font-size: 11px;
+    font-size: calc(var(--_fs) * 0.8); /* 12px */
     color: #9ca3af;
   }
 `;

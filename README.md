@@ -237,13 +237,14 @@ The `<mc-consent-widget>` element must be placed in your HTML — there is no au
 
 Set on `<mc-consent-widget>` or any ancestor — they pierce the Shadow DOM:
 
-| Variable             | Default          | Description                         |
-| -------------------- | ---------------- | ----------------------------------- |
-| `--mc-primary`       | `#111827`        | Primary button background           |
-| `--mc-primary-hover` | auto             | Primary button hover (auto-derived) |
-| `--mc-primary-text`  | `#fff`           | Primary button text color           |
-| `--mc-radius`        | `12px`           | Modal border radius                 |
-| `--mc-font`          | `system-ui, ...` | Font family                         |
+| Variable             | Default          | Description                                                     |
+| -------------------- | ---------------- | --------------------------------------------------------------- |
+| `--mc-primary`       | `#111827`        | Primary button background                                       |
+| `--mc-primary-hover` | auto             | Primary button hover (auto-derived)                             |
+| `--mc-primary-text`  | `#fff`           | Primary button text color                                       |
+| `--mc-radius`        | `12px`           | Modal border radius                                             |
+| `--mc-font`          | `system-ui, ...` | Font family                                                     |
+| `--mc-font-size`     | `15px`           | Type-scale base — every text size in the widget derives from it |
 
 ### Languages
 
