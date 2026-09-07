@@ -1,5 +1,12 @@
 # @modernconsent/playground
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [8ac9d45]
+  - @modernconsent/widget@3.1.0
+
 ## 0.0.2
 
 ### Patch Changes
