@@ -6,7 +6,7 @@ import type { Vendor, VendorLoader } from './registry';
 import { emitter } from './emitter';
 import { initConsentMode } from './gcm';
 import type { GcmSignal, GcmState } from './gcm';
-import { restoreConsent } from './consent';
+import { restoreConsent, setConsent } from './consent';
 
 /**
  * Command can add in config
@@ -126,6 +126,8 @@ type McAPI = {
   getConsent: () => ConsentState;
   /** Consent + audit metadata (consentId, timestamp, version) as persisted in the cookie. */
   getConsentRecord: () => ConsentRecord;
+  /** Grant or revoke one vendor programmatically — one action: one consentId, one cookie write, one `consent:saved`. */
+  setConsent: (id: string, allowed: boolean) => void;
   on: typeof emitter.on;
   /** @internal marks the live API so a second copy of the core does not re-init. */
   __mc?: true;
@@ -265,6 +267,7 @@ export function initMcLayer() {
     openPanel: () => isPanelOpen.set(true),
     getConsent: () => consentState.get(),
     getConsentRecord: () => getConsentRecord(),
+    setConsent: (id: string, allowed: boolean) => setConsent(id, allowed),
     on: emitter.on.bind(emitter),
     __mc: true as const,
   });

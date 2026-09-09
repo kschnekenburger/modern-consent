@@ -166,6 +166,9 @@ window.modernConsent.getConsent();
 window.modernConsent.getConsentRecord();
 // → { consent: {...}, answered: true, consentId: 'uuid', timestamp: 1711468800000, version: 'v1' }
 
+// Write consent programmatically (one action: one consentId, one cookie write, one `consent:saved`)
+window.modernConsent.setConsent('google-analytics', true);
+
 // Listen to changes
 window.modernConsent.on('consent:update', e => {
   console.log(e.vendor, e.status); // 'google-analytics', 'granted'
@@ -318,6 +321,7 @@ After initialization, `window.modernConsent` exposes:
 | `.openPanel()`         | —               | Open the consent panel                        |
 | `.getConsent()`        | `ConsentState`  | Get current consent state                     |
 | `.getConsentRecord()`  | `ConsentRecord` | Consent + `consentId`, `timestamp`, `version` |
+| `.setConsent(id, ok)`  | —               | Grant or revoke one vendor programmatically   |
 | `.on(event, callback)` | `() => void`    | Subscribe to events (returns unsubscriber)    |
 
 From the npm package, `setConsent(id, allowed)`, `setConsentBatch({ id: allowed, ... })`, `acceptAll()` and `denyAll()` are also exported. Every one of them is **one action**: one `consentId`, one cookie write, one `consent:saved`, at most one page reload.

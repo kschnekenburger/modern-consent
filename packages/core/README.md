@@ -94,6 +94,9 @@ Integration points:
 window.modernConsent.getConsent();
 window.modernConsent.getConsentRecord(); // + consentId, timestamp, version
 
+// Write state (one action: one consentId, one cookie write, one `consent:saved`)
+window.modernConsent.setConsent('google-analytics', true);
+
 // Listen to changes
 window.modernConsent.on('consent:update', e => {
   console.log(e.vendor, e.status);
@@ -129,6 +132,7 @@ window.dataLayer;
 | `.openPanel()`        | —               | Open the consent panel                        |
 | `.getConsent()`       | `ConsentState`  | Current consent state                         |
 | `.getConsentRecord()` | `ConsentRecord` | Consent + `consentId`, `timestamp`, `version` |
+| `.setConsent(id, ok)` | —               | Grant/revoke one vendor programmatically      |
 | `.on(event, cb)`      | `() => void`    | Subscribe to events                           |
 
 ## Stores
