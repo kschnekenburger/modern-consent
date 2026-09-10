@@ -35,6 +35,11 @@ export interface ConsentRecord extends ConsentMeta {
   answered: boolean;
 }
 
+export interface ConsentInput extends ConsentMeta {
+  consent: ConsentState;
+  answered?: boolean;
+}
+
 const DEFAULT_STORAGE_KEY = 'mc_consent_state';
 
 interface CookieOptions {
@@ -94,15 +99,21 @@ export const openPanel = () => isPanelOpen.set(true);
 
 type PersistOptions = Pick<
   import('./layer').McConfig,
-  'cookieName' | 'cookieDomain' | 'consentVersion'
+  'cookieName' | 'cookieDomain' | 'consentVersion' | 'embedded'
 >;
 
 let _persist: PersistOptions = {};
+
+/** True when the page is driven by a host page (`embedded: true`): nothing is persisted. */
+export function isEmbedded(): boolean {
+  return _persist.embedded === true;
+}
 
 /**
  * Loads the stored consent into the stores.
  * Returns `{ restored: true }` when a valid, answered consent (matching `consentVersion`)
  * was found — the caller can then replay it to the data layers.
+ * In embedded mode the cookie is never read: consent only comes from the host page.
  */
 export const initState = (config: PersistOptions): { restored: boolean } => {
   _persist = { ...config };
@@ -111,7 +122,7 @@ export const initState = (config: PersistOptions): { restored: boolean } => {
 
   let initialData: ConsentRecord = { consent: {}, answered: false };
 
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && !isEmbedded()) {
     const stored = getCookie(cookieName);
     if (stored) {
       try {
@@ -145,14 +156,22 @@ export const initState = (config: PersistOptions): { restored: boolean } => {
  * Commits a consent action: ONE consentId, ONE timestamp, ONE cookie write.
  * This is the only place that persists consent — stores are updated here too so
  * that the in-memory state, the audit metadata and the cookie always agree.
+ *
+ * `meta` overrides the generated audit metadata — used when the decision was taken
+ * elsewhere (host page of an iframe) so both pages share the same `consentId`.
+ * In embedded mode the cookie is not written: the host page is the source of truth.
  */
-export function commitConsent(consent: ConsentState, answered = true): ConsentRecord {
+export function commitConsent(
+  consent: ConsentState,
+  answered = true,
+  meta: ConsentMeta = {},
+): ConsentRecord {
   const record: ConsentRecord = {
     consent,
     answered,
-    consentId: generateUUID(),
-    timestamp: Date.now(),
-    version: _persist.consentVersion,
+    consentId: meta.consentId ?? generateUUID(),
+    timestamp: meta.timestamp ?? Date.now(),
+    version: meta.version ?? _persist.consentVersion,
   };
 
   consentState.set(consent);
@@ -163,7 +182,7 @@ export function commitConsent(consent: ConsentState, answered = true): ConsentRe
     version: record.version,
   });
 
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && !isEmbedded()) {
     setCookie(_persist.cookieName || DEFAULT_STORAGE_KEY, JSON.stringify(record), {
       domain: _persist.cookieDomain,
       secure: window.location.protocol === 'https:',

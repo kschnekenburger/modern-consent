@@ -1,17 +1,17 @@
 import { registerService } from './registry';
 import { addResolver, resolveVendor } from './resolver';
 import { consentState, initState, isPanelOpen, getConsentRecord } from './state';
-import type { ConsentState, ConsentRecord } from './state';
+import type { ConsentState, ConsentRecord, ConsentInput } from './state';
 import type { Vendor, VendorLoader } from './registry';
 import { emitter } from './emitter';
 import { initConsentMode } from './gcm';
 import type { GcmSignal, GcmState } from './gcm';
-import { restoreConsent, setConsent } from './consent';
+import { restoreConsent, setConsent, setConsentRecord } from './consent';
 
 /**
  * Command can add in config
  */
-const validCommands = ['config', 'vendor'] as const;
+const validCommands = ['config', 'vendor', 'ready', 'consent'] as const;
 
 export interface McConfig {
   cookieDomain?: string;
@@ -83,6 +83,14 @@ export interface McConfig {
    * it informs the user that essential cookies are always active.
    */
   functionalPurpose?: boolean;
+  /**
+   * Headless mode for a page embedded in an iframe whose consent is collected by the host page.
+   * The core never reads nor writes the consent cookie, the widget never shows, revoking a
+   * vendor never reloads the page. Consent comes exclusively from the host through
+   * `setConsentRecord()` / the `consent` command; events, `consentLayer` / `dataLayer`
+   * pushes (`consent_source: 'external'`) and Consent Mode keep working as usual.
+   */
+  embedded?: boolean;
 }
 
 export interface McVendor {
@@ -118,9 +126,17 @@ export interface McVendor {
 
 export type ConfigCommand = ['config', McConfig];
 export type VendorCommand = ['vendor', McVendor];
-export type McCommand = ConfigCommand | VendorCommand;
+/**
+ * Runs the callback with the live API once the core is initialised — immediately if it
+ * already is. Queue-safe: the only reliable way to read state or subscribe to events from a
+ * script that may run before `consent.js` has loaded.
+ */
+export type ReadyCommand = ['ready', (api: McAPI) => void];
+/** Applies a consent snapshot decided elsewhere (see `setConsentRecord`). Queue-safe. */
+export type ConsentCommand = ['consent', ConsentInput];
+export type McCommand = ConfigCommand | VendorCommand | ReadyCommand | ConsentCommand;
 
-type McAPI = {
+export type McAPI = {
   (...args: McCommand): void;
   openPanel: () => void;
   getConsent: () => ConsentState;
@@ -128,6 +144,8 @@ type McAPI = {
   getConsentRecord: () => ConsentRecord;
   /** Grant or revoke one vendor programmatically — one action: one consentId, one cookie write, one `consent:saved`. */
   setConsent: (id: string, allowed: boolean) => void;
+  /** Apply a full consent snapshot from another page (iframe host). Idempotent; keeps the given `consentId`. */
+  setConsentRecord: (record: ConsentInput) => void;
   on: typeof emitter.on;
   /** @internal marks the live API so a second copy of the core does not re-init. */
   __mc?: true;
@@ -222,6 +240,11 @@ export function initMcLayer() {
     };
   });
 
+  // `ready` callbacks and `consent` snapshots need the initialized state: they are deferred
+  // until config + vendors from the queue have been processed. Only kept the last snapshot.
+  const readyCallbacks: Array<(api: McAPI) => void> = [];
+  let queuedConsent: ConsentInput | undefined;
+
   // Process the existing queue — config commands accumulate before vendors are registered
   existingQueue.forEach((args: McCommand) => {
     const [command, payload] = args;
@@ -233,16 +256,28 @@ export function initMcLayer() {
 
     if (command === 'config') {
       applyConfig(payload as McConfig);
-      return;
+    } else if (command === 'vendor') {
+      handleVendor(payload as McVendor);
+    } else if (command === 'ready') {
+      readyCallbacks.push(payload as (api: McAPI) => void);
+    } else if (command === 'consent') {
+      queuedConsent = payload as ConsentInput;
     }
-
-    handleVendor(payload as McVendor);
   });
 
   // State is initialised once after config is fully resolved from the queue.
   // If a valid consent is stored, replay it so TMS triggers and GCM fire on every page.
   const { restored } = initState(w._modernConsentConfig);
   if (restored) restoreConsent();
+  if (queuedConsent) setConsentRecord(queuedConsent);
+
+  const runReady = (cb: (api: McAPI) => void) => {
+    try {
+      cb(w.modernConsent);
+    } catch (err) {
+      console.error('[modern-consent] ready callback failed:', err);
+    }
+  };
 
   // Live API
   const apiFn = (...args: McCommand) => {
@@ -257,6 +292,10 @@ export function initMcLayer() {
       handleVendor(payload as McVendor);
     } else if (command === 'config') {
       applyConfig(payload as McConfig);
+    } else if (command === 'ready') {
+      runReady(payload as (api: McAPI) => void);
+    } else if (command === 'consent') {
+      setConsentRecord(payload as ConsentInput);
     }
 
     if (!Array.isArray(w.mcLayer)) w.mcLayer = [];
@@ -268,7 +307,10 @@ export function initMcLayer() {
     getConsent: () => consentState.get(),
     getConsentRecord: () => getConsentRecord(),
     setConsent: (id: string, allowed: boolean) => setConsent(id, allowed),
+    setConsentRecord: (record: ConsentInput) => setConsentRecord(record),
     on: emitter.on.bind(emitter),
     __mc: true as const,
   });
+
+  readyCallbacks.forEach(runReady);
 }

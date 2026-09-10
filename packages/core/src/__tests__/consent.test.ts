@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { consentState, hasAnswered, servicesList, isPanelOpen, initState } from '../state';
 import {
   acceptAll,
   denyAll,
   setConsent,
   setConsentBatch,
+  setConsentRecord,
   restoreConsent,
   __resetPendingReload,
 } from '../consent';
@@ -229,6 +230,123 @@ describe('Consent Logic', () => {
     servicesList.set([service('service1', true), service('service2', true)]);
     const reload = withMockedReload(() => denyAll());
     expect(reload).not.toHaveBeenCalled();
+  });
+
+  describe('setConsentRecord (snapshot from the host page)', () => {
+    const parentRecord = {
+      consent: { service1: true, service2: false },
+      answered: true,
+      consentId: 'parent-id',
+      timestamp: 1234,
+      version: 'parent-v1',
+    };
+
+    it('applies the snapshot as ONE action and keeps the parent audit metadata', () => {
+      const saved = vi.fn();
+      const off = emitter.on('consent:saved', saved);
+
+      setConsentRecord(parentRecord);
+
+      expect(consentState.get()).toEqual({ service1: true, service2: false });
+      expect(hasAnswered.get()).toBe(true);
+      expect(saved).toHaveBeenCalledTimes(1);
+      expect(saved.mock.calls[0][0]).toMatchObject({
+        consentId: 'parent-id',
+        timestamp: 1234,
+        version: 'parent-v1',
+      });
+      expect(readCookie()).toMatchObject({ consentId: 'parent-id', timestamp: 1234 });
+      expect(registry.activateService).toHaveBeenCalledWith('service1');
+      expect(registry.activateService).not.toHaveBeenCalledWith('service2');
+
+      off();
+    });
+
+    it('pushes to the data layers with source "external"', () => {
+      window._modernConsentConfig = { pushDataLayer: true };
+      setConsentRecord(parentRecord);
+
+      expect(window.consentLayer).toHaveLength(1);
+      expect(window.dataLayer[0]).toMatchObject({
+        event: 'consent_update',
+        consent_state: { service1: true, service2: false },
+        consent_id: 'parent-id',
+        consent_source: 'external',
+      });
+    });
+
+    it('only touches the vendors whose status changes, and is a no-op when nothing changes', () => {
+      setConsent('service1', true);
+      const updated = vi.fn();
+      const saved = vi.fn();
+      const off1 = emitter.on('consent:update', updated);
+      const off2 = emitter.on('consent:saved', saved);
+
+      setConsentRecord(parentRecord);
+      expect(updated).toHaveBeenCalledTimes(1);
+      expect(updated).toHaveBeenCalledWith({ vendor: 'service2', status: 'denied' });
+      expect(saved).toHaveBeenCalledTimes(1);
+
+      // Same snapshot again: nothing changes, no event, no new consentId
+      updated.mockClear();
+      saved.mockClear();
+      setConsentRecord(parentRecord);
+      expect(updated).not.toHaveBeenCalled();
+      expect(saved).not.toHaveBeenCalled();
+      expect(readCookie().consentId).toBe('parent-id');
+
+      off1();
+      off2();
+    });
+
+    it('treats the snapshot as the full state: vendors missing from it are revoked', () => {
+      setConsentBatch({ service1: true, service2: true });
+
+      setConsentRecord({ consent: { service2: true } });
+
+      expect(consentState.get()).toEqual({ service1: false, service2: true });
+      expect(registry.clearVendorArtifacts).toHaveBeenCalledWith('service1');
+    });
+
+    it('generates audit metadata when the snapshot carries none', () => {
+      setConsentRecord({ consent: { service1: true } });
+      const cookie = readCookie();
+      expect(typeof cookie.consentId).toBe('string');
+      expect(cookie.version).toBe('v1');
+    });
+  });
+
+  describe('embedded mode', () => {
+    beforeEach(() => {
+      window._modernConsentConfig = { embedded: true };
+      initState({ cookieName: COOKIE, embedded: true });
+      isPanelOpen.set(false);
+    });
+
+    afterEach(() => {
+      initState({ cookieName: COOKIE, consentVersion: 'v1' });
+    });
+
+    it('applies the host snapshot without persisting anything', () => {
+      setConsentRecord({ consent: { service1: true }, consentId: 'parent-id' });
+
+      expect(consentState.get()).toEqual({ service1: true });
+      expect(readCookie()).toBeUndefined();
+      expect(window.consentLayer[0]).toMatchObject({
+        consent_id: 'parent-id',
+        consent_source: 'external',
+      });
+    });
+
+    it('never reloads on revocation, even for a loaded vendor', () => {
+      servicesList.set([service('service1', true)]);
+      setConsentRecord({ consent: { service1: true } });
+
+      const reload = withMockedReload(() => setConsentRecord({ consent: { service1: false } }));
+
+      expect(reload).not.toHaveBeenCalled();
+      expect(registry.clearVendorArtifacts).toHaveBeenCalledWith('service1');
+    });
   });
 
   describe('restoreConsent (page reload)', () => {

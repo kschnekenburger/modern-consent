@@ -103,6 +103,7 @@ All options are passed via `window.modernConsent('config', { ... })`.
 | `displayMode`         | `'vendor' \| 'purpose'`                             | `'vendor'`           | How the details panel displays controls                                     |
 | `functionalPurpose`   | `boolean`                                           | `false`              | Show a mandatory "Site operation" block in the details panel                |
 | `purposes`            | `Record<string, { label, description? }>`           | —                    | Custom purpose labels (fallback for vendors without `purposeLabel`)         |
+| `embedded`            | `boolean`                                           | `false`              | Headless mode for iframes: consent is pushed by the host page (see below)   |
 
 ### Consent Versioning
 
@@ -177,13 +178,62 @@ window.modernConsent.on('consent:update', e => {
 // consentLayer (always active, TMS-agnostic)
 window.consentLayer;
 // → [{ event: 'consent_update', consent_state: { ... }, consent_id, consent_timestamp,
-//      consent_version, consent_source: 'user' | 'restore', gcm? }]
+//      consent_version, consent_source: 'user' | 'restore' | 'external', gcm? }]
 
 // dataLayer (opt-in via pushDataLayer: true) — same events
 window.dataLayer;
 ```
 
 > Listeners registered with `.on()` after the library has initialized will not receive the `consent:restored` event of the current page — read `getConsentRecord()` (or the `consentLayer` array) for the initial state instead.
+
+### Reading consent from a third-party script (`ready`)
+
+Before `consent.js` has loaded, `window.modernConsent` is only the queue stub: `.getConsentRecord()` and `.on()` do not exist yet. A script that cannot know whether the CMP is already up (a widget, an iframe bridge, a tag) should use the `ready` command. It is queue-safe and runs the callback with the live API — immediately if the core is already initialised, otherwise right after it initialises:
+
+```javascript
+window.modernConsent('ready', mc => {
+  const record = mc.getConsentRecord();
+  if (record.answered) sync(record); // current state (cookie or decision taken earlier in the page)
+  mc.on('consent:saved', sync); // every later decision, with the full state
+});
+```
+
+This covers every ordering: cookie restored at load, user deciding after the script ran, or user having decided before the script ran.
+
+### Embedded mode (iframes)
+
+When your page is embedded in a partner site, the partner's CMP collects the consent — your page must not prompt again, must not write its own consent cookie (third-party context, and the host is the controller of record) and must not reload under the user's feet. Turn on `embedded` and push the host's decisions:
+
+```javascript
+// In the embedded page
+window.modernConsent('config', {
+  embedded: true,
+  consentMode: true, // Consent Mode, data layer pushes and events keep working
+  pushDataLayer: true,
+});
+
+// Whenever the host sends its consent (postMessage, bridge…). Queue-safe: works before consent.js loads.
+window.modernConsent('consent', {
+  consent: { 'google-analytics': true, 'meta-pixel': false },
+  consentId: '550e8400-…', // optional: kept as-is so both pages share the audit id
+  timestamp: 1711468800000,
+  version: 'v1',
+});
+```
+
+`consent` (and `setConsentRecord()` on the live API) takes the **full** state: vendors missing from the snapshot are revoked. Only vendors whose status changes are touched, so re-sending the same snapshot is a no-op — no event, no new `consentId`. Data layer events are pushed with `consent_source: 'external'`.
+
+On the host side, if the host also runs ModernConsent, `ready` + `getConsentRecord()` + `consent:saved` give you everything to forward:
+
+```javascript
+// In the host page
+window.modernConsent('ready', mc => {
+  const send = record => iframeBridge.send(record); // your transport
+  const record = mc.getConsentRecord();
+  if (record.answered) send(record);
+  mc.on('consent:saved', send);
+});
+```
 
 ---
 
@@ -314,17 +364,22 @@ window.modernConsent('vendor', {
 
 After initialization, `window.modernConsent` exposes:
 
-| Method                 | Returns         | Description                                   |
-| ---------------------- | --------------- | --------------------------------------------- |
-| `('config', options)`  | —               | Merge configuration                           |
-| `('vendor', vendor)`   | —               | Register a vendor                             |
-| `.openPanel()`         | —               | Open the consent panel                        |
-| `.getConsent()`        | `ConsentState`  | Get current consent state                     |
-| `.getConsentRecord()`  | `ConsentRecord` | Consent + `consentId`, `timestamp`, `version` |
-| `.setConsent(id, ok)`  | —               | Grant or revoke one vendor programmatically   |
-| `.on(event, callback)` | `() => void`    | Subscribe to events (returns unsubscriber)    |
+| Method                      | Returns         | Description                                                             |
+| --------------------------- | --------------- | ----------------------------------------------------------------------- |
+| `('config', options)`       | —               | Merge configuration                                                     |
+| `('vendor', vendor)`        | —               | Register a vendor                                                       |
+| `('ready', cb)`             | —               | Run `cb(api)` once the core is initialised (immediately if it is)       |
+| `('consent', record)`       | —               | Apply a consent snapshot from another page (same as `setConsentRecord`) |
+| `.openPanel()`              | —               | Open the consent panel                                                  |
+| `.getConsent()`             | `ConsentState`  | Get current consent state                                               |
+| `.getConsentRecord()`       | `ConsentRecord` | Consent + `consentId`, `timestamp`, `version`                           |
+| `.setConsent(id, ok)`       | —               | Grant or revoke one vendor programmatically                             |
+| `.setConsentRecord(record)` | —               | Apply a full snapshot (idempotent, keeps the given `consentId`)         |
+| `.on(event, callback)`      | `() => void`    | Subscribe to events (returns unsubscriber)                              |
 
-From the npm package, `setConsent(id, allowed)`, `setConsentBatch({ id: allowed, ... })`, `acceptAll()` and `denyAll()` are also exported. Every one of them is **one action**: one `consentId`, one cookie write, one `consent:saved`, at most one page reload.
+The four commands (`config`, `vendor`, `ready`, `consent`) can be called through the queue stub before the library loads; the dot methods only exist on the live API.
+
+From the npm package, `setConsent(id, allowed)`, `setConsentBatch({ id: allowed, ... })`, `setConsentRecord(record)`, `acceptAll()` and `denyAll()` are also exported. Every one of them is **one action**: one `consentId`, one cookie write, one `consent:saved`, at most one page reload.
 
 ### Events
 

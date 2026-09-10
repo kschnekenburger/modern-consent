@@ -4,6 +4,7 @@ import {
   hasAnswered,
   isPanelOpen,
   openPanel,
+  isEmbedded,
   type ConsentState,
   type ServiceMetadata,
 } from '@modernconsent/core';
@@ -561,6 +562,8 @@ export class McConsentWidget extends HTMLElement {
   }
 
   private ensurePanelOpenIfNeeded() {
+    // Embedded: consent is collected by the host page, the widget must never prompt.
+    if (isEmbedded()) return;
     if (this.getPendingServices().length > 0 && !this.answered && !this.panelOpen) {
       openPanel();
     }
@@ -571,7 +574,7 @@ export class McConsentWidget extends HTMLElement {
   }
 
   private shouldShowPopup(): boolean {
-    return this.panelOpen && this.services.length > 0;
+    return !isEmbedded() && this.panelOpen && this.services.length > 0;
   }
 
   // ─── Focus trap ──────────────────────────────────────────────────────────────

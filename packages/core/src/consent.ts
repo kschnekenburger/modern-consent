@@ -1,5 +1,12 @@
-import { servicesList, consentState, isPanelOpen, commitConsent, getConsentRecord } from './state';
-import type { ConsentState, ConsentRecord } from './state';
+import {
+  servicesList,
+  consentState,
+  isPanelOpen,
+  commitConsent,
+  getConsentRecord,
+  isEmbedded,
+} from './state';
+import type { ConsentState, ConsentRecord, ConsentInput, ConsentMeta } from './state';
 import { activateService, clearVendorArtifacts } from './registry';
 import { emitter } from './emitter';
 import { syncConsentMode } from './gcm';
@@ -12,14 +19,15 @@ declare global {
   }
 }
 
-export type ConsentEventSource = 'user' | 'restore';
+export type ConsentEventSource = 'user' | 'restore' | 'external';
 
 /**
  * Always pushes consent state to `window.consentLayer` (TMS-agnostic).
  * Optionally pushes to `window.dataLayer` when `pushDataLayer` is enabled (GTM convenience).
  *
- * `source` is `'user'` for a fresh decision and `'restore'` when a stored consent is
- * replayed at page load — the event name is the same so TMS triggers fire in both cases.
+ * `source` is `'user'` for a fresh decision, `'restore'` when a stored consent is replayed
+ * at page load and `'external'` when the decision comes from another page (iframe host) —
+ * the event name is the same so TMS triggers fire in every case.
  */
 function pushConsentEvent(record: ConsentRecord, source: ConsentEventSource, gcm?: GcmState) {
   if (typeof window === 'undefined') return;
@@ -59,7 +67,8 @@ let _reloadUnsub: (() => void) | null = null;
  * revocations coalesce into a single reload.
  */
 function scheduleReload() {
-  if (isConsentOnly() || typeof window === 'undefined') return;
+  // Embedded: never reload under the host page — the user is likely mid-flow in the iframe.
+  if (isConsentOnly() || isEmbedded() || typeof window === 'undefined') return;
 
   if (!isPanelOpen.get()) {
     window.location.reload();
@@ -84,12 +93,19 @@ export function __resetPendingReload() {
   _reloadUnsub = null;
 }
 
+type ApplyOptions = {
+  closePanel?: boolean;
+  /** Audit metadata to keep instead of generating new ones (external decision). */
+  meta?: ConsentMeta;
+  source?: ConsentEventSource;
+};
+
 /**
  * Single entry point for every consent decision.
  * ONE commit (cookie + consentId), ONE `consent:saved`, ONE optional reload,
  * and one `consent:update` per vendor touched.
  */
-function applyConsent(updates: Record<string, boolean>, options: { closePanel?: boolean } = {}) {
+function applyConsent(updates: Record<string, boolean>, options: ApplyOptions = {}) {
   const ids = Object.keys(updates);
   if (ids.length === 0) return;
 
@@ -106,7 +122,7 @@ function applyConsent(updates: Record<string, boolean>, options: { closePanel?: 
     if (list.find(s => s.id === id)?.loaded) needsReload = true;
   });
 
-  const record = commitConsent(next, true);
+  const record = commitConsent(next, true, options.meta);
   if (options.closePanel) isPanelOpen.set(false);
 
   const gcm = syncConsentMode(next);
@@ -119,7 +135,7 @@ function applyConsent(updates: Record<string, boolean>, options: { closePanel?: 
     });
   });
 
-  pushConsentEvent(record, 'user', gcm);
+  pushConsentEvent(record, options.source ?? 'user', gcm);
   emitter.emit('consent:saved', {
     consentId: record.consentId!,
     timestamp: record.timestamp!,
@@ -158,6 +174,34 @@ export function denyAll() {
   const updates: Record<string, boolean> = {};
   servicesList.get().forEach(s => (updates[s.id] = false));
   applyConsent(updates, { closePanel: true });
+}
+
+/**
+ * Applies a consent snapshot decided elsewhere — typically pushed by the host page into an
+ * iframe running in `embedded` mode. `record.consent` is the FULL state: vendors missing
+ * from it are revoked. Only the vendors whose status actually changes are touched, so
+ * re-sending the same snapshot is a no-op (no event, no new consentId).
+ *
+ * When the record carries audit metadata (`consentId`, `timestamp`, `version`) it is kept
+ * as-is, so the host page and the embedded page share one `consentId` for the action.
+ */
+export function setConsentRecord(record: ConsentInput) {
+  const snapshot = record?.consent ?? {};
+  const previous = consentState.get();
+  const updates: Record<string, boolean> = {};
+
+  Object.keys(previous).forEach(id => {
+    if (previous[id] === true && !(id in snapshot)) updates[id] = false;
+  });
+  Object.keys(snapshot).forEach(id => {
+    const allowed = snapshot[id] === true;
+    if (previous[id] !== allowed) updates[id] = allowed;
+  });
+
+  applyConsent(updates, {
+    source: 'external',
+    meta: { consentId: record.consentId, timestamp: record.timestamp, version: record.version },
+  });
 }
 
 /**

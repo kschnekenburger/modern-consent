@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   consentState,
   hasAnswered,
@@ -6,6 +6,7 @@ import {
   initState,
   commitConsent,
   getConsentRecord,
+  isEmbedded,
 } from '../state';
 
 function readCookie(name: string) {
@@ -100,5 +101,52 @@ describe('State & Cookies', () => {
     const { restored } = initState({ consentVersion: 'v1' });
     expect(hasAnswered.get()).toBe(true);
     expect(restored).toBe(true);
+  });
+
+  it('commitConsent() keeps the provided audit metadata instead of generating new ones', () => {
+    initState({ cookieName: 'custom_cookie', consentVersion: 'v3' });
+
+    const record = commitConsent({ ga: true }, true, {
+      consentId: 'parent-id',
+      timestamp: 1234,
+      version: 'parent-v1',
+    });
+
+    expect(record).toMatchObject({ consentId: 'parent-id', timestamp: 1234, version: 'parent-v1' });
+    expect(readCookie('custom_cookie')).toMatchObject({ consentId: 'parent-id', timestamp: 1234 });
+    expect(consentMeta.get()).toEqual({
+      consentId: 'parent-id',
+      timestamp: 1234,
+      version: 'parent-v1',
+    });
+  });
+
+  describe('embedded mode', () => {
+    afterEach(() => {
+      initState({});
+    });
+
+    it('ignores the stored cookie: consent only comes from the host page', () => {
+      const mockState = { consent: { ga: true }, answered: true };
+      document.cookie = `mc_consent_state=${encodeURIComponent(JSON.stringify(mockState))};path=/`;
+
+      const { restored } = initState({ embedded: true });
+
+      expect(isEmbedded()).toBe(true);
+      expect(restored).toBe(false);
+      expect(consentState.get()).toEqual({});
+      expect(hasAnswered.get()).toBe(false);
+    });
+
+    it('never writes the cookie but still updates the in-memory record', () => {
+      initState({ cookieName: 'embedded_cookie', embedded: true });
+
+      const record = commitConsent({ ga: true }, true, { consentId: 'parent-id' });
+
+      expect(readCookie('embedded_cookie')).toBeUndefined();
+      expect(consentState.get()).toEqual({ ga: true });
+      expect(hasAnswered.get()).toBe(true);
+      expect(getConsentRecord()).toEqual(record);
+    });
   });
 });

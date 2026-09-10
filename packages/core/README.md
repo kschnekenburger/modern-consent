@@ -62,17 +62,18 @@ emitter.on('consent:restored', data => {
 
 All options are passed via `window.modernConsent('config', { ... })`:
 
-| Option                | Type                    | Default              | Description                                                               |
-| --------------------- | ----------------------- | -------------------- | ------------------------------------------------------------------------- |
-| `cookieName`          | `string`                | `'mc_consent_state'` | Name of the consent cookie                                                |
-| `cookieDomain`        | `string`                | —                    | Domain scope (e.g. `.example.com`)                                        |
-| `consentMode`         | `boolean`               | `false`              | Google Consent Mode v2: core pushes `consent default` + derived `update`  |
-| `consentModeDefaults` | `GcmState`              | —                    | Overrides for the `consent default` command                               |
-| `consentVersion`      | `string`                | —                    | Version for GDPR audit. Changing it re-prompts the user                   |
-| `consentOnly`         | `boolean`               | `false`              | Consent-only mode — no vendor `init()` calls. For Tag Manager integration |
-| `pushDataLayer`       | `boolean`               | `false`              | Push events to `window.dataLayer` (GTM)                                   |
-| `displayMode`         | `'vendor' \| 'purpose'` | `'vendor'`           | How the widget displays controls                                          |
-| `functionalPurpose`   | `boolean`               | `false`              | Show mandatory "Site operation" block                                     |
+| Option                | Type                    | Default              | Description                                                                |
+| --------------------- | ----------------------- | -------------------- | -------------------------------------------------------------------------- |
+| `cookieName`          | `string`                | `'mc_consent_state'` | Name of the consent cookie                                                 |
+| `cookieDomain`        | `string`                | —                    | Domain scope (e.g. `.example.com`)                                         |
+| `consentMode`         | `boolean`               | `false`              | Google Consent Mode v2: core pushes `consent default` + derived `update`   |
+| `consentModeDefaults` | `GcmState`              | —                    | Overrides for the `consent default` command                                |
+| `consentVersion`      | `string`                | —                    | Version for GDPR audit. Changing it re-prompts the user                    |
+| `consentOnly`         | `boolean`               | `false`              | Consent-only mode — no vendor `init()` calls. For Tag Manager integration  |
+| `pushDataLayer`       | `boolean`               | `false`              | Push events to `window.dataLayer` (GTM)                                    |
+| `displayMode`         | `'vendor' \| 'purpose'` | `'vendor'`           | How the widget displays controls                                           |
+| `functionalPurpose`   | `boolean`               | `false`              | Show mandatory "Site operation" block                                      |
+| `embedded`            | `boolean`               | `false`              | Headless iframe mode: no cookie, no UI, no reload — consent pushed by host |
 
 ## Consent-Only Mode
 
@@ -105,10 +106,34 @@ window.modernConsent.on('consent:update', e => {
 // consentLayer (always active)
 window.consentLayer;
 // [{ event: 'consent_update', consent_state, consent_id, consent_timestamp,
-//    consent_version, consent_source: 'user' | 'restore', gcm? }]
+//    consent_version, consent_source: 'user' | 'restore' | 'external', gcm? }]
 
 // dataLayer (opt-in)
 window.dataLayer;
+```
+
+## Embedded Mode (iframes)
+
+For a page embedded in a host site whose CMP collects the consent. The core never reads nor writes the cookie, the widget never prompts, revocations never reload. Consent is pushed by the host as a full snapshot — queue-safe, idempotent, and the host's `consentId` is kept for the audit trail:
+
+```javascript
+window.modernConsent('config', { embedded: true, consentMode: true });
+
+window.modernConsent('consent', {
+  consent: { 'google-analytics': true, 'meta-pixel': false },
+  consentId: 'host-consent-id', // optional
+});
+```
+
+Data layer events are pushed with `consent_source: 'external'`.
+
+Third-party scripts that may run before the library has loaded should use `ready` instead of touching the dot methods directly:
+
+```javascript
+window.modernConsent('ready', mc => {
+  mc.getConsentRecord();
+  mc.on('consent:saved', record => {});
+});
 ```
 
 ## Cookie Format
@@ -125,15 +150,18 @@ window.dataLayer;
 
 ## Public API
 
-| Method                | Returns         | Description                                   |
-| --------------------- | --------------- | --------------------------------------------- |
-| `('config', options)` | —               | Merge configuration                           |
-| `('vendor', vendor)`  | —               | Register a vendor                             |
-| `.openPanel()`        | —               | Open the consent panel                        |
-| `.getConsent()`       | `ConsentState`  | Current consent state                         |
-| `.getConsentRecord()` | `ConsentRecord` | Consent + `consentId`, `timestamp`, `version` |
-| `.setConsent(id, ok)` | —               | Grant/revoke one vendor programmatically      |
-| `.on(event, cb)`      | `() => void`    | Subscribe to events                           |
+| Method                      | Returns         | Description                                                     |
+| --------------------------- | --------------- | --------------------------------------------------------------- |
+| `('config', options)`       | —               | Merge configuration                                             |
+| `('vendor', vendor)`        | —               | Register a vendor                                               |
+| `('ready', cb)`             | —               | Run `cb(api)` once initialised (immediately if already)         |
+| `('consent', record)`       | —               | Apply a consent snapshot from another page                      |
+| `.openPanel()`              | —               | Open the consent panel                                          |
+| `.getConsent()`             | `ConsentState`  | Current consent state                                           |
+| `.getConsentRecord()`       | `ConsentRecord` | Consent + `consentId`, `timestamp`, `version`                   |
+| `.setConsent(id, ok)`       | —               | Grant/revoke one vendor programmatically                        |
+| `.setConsentRecord(record)` | —               | Apply a full snapshot (idempotent, keeps the given `consentId`) |
+| `.on(event, cb)`            | `() => void`    | Subscribe to events                                             |
 
 ## Stores
 
