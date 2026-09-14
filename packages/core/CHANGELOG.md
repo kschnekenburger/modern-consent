@@ -1,5 +1,11 @@
 # @modernconsent/core
 
+## 3.3.1
+
+### Patch Changes
+
+- Reduce the default consent cookie lifetime from 365 to 180 days
+
 ## 3.3.0
 
 ### Minor Changes

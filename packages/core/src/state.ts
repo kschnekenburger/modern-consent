@@ -63,7 +63,7 @@ const getCookie = (name: string): string | null => {
 const setCookie = (name: string, value: string, options: CookieOptions = {}) => {
   if (typeof document === 'undefined') return;
 
-  const { days = 365, path = '/', domain, sameSite = 'Lax', secure = false } = options;
+  const { days = 180, path = '/', domain, sameSite = 'Lax', secure = false } = options;
 
   const expires = new Date();
   expires.setDate(expires.getDate() + days);
