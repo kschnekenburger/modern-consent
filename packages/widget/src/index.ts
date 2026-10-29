@@ -50,7 +50,7 @@ const LABELS: Record<string, WidgetLabels> = {
     bannerTitle: 'Nous respectons votre vie privée',
     bannerBody:
       'Ce site utilise des cookies pour améliorer votre expérience, mesurer l\u2019audience et personnaliser les contenus. Votre choix sera conservé et modifiable à tout moment.',
-    bannerAcceptAll: 'Tout accepter',
+    bannerAcceptAll: 'Accepter et continuer',
     bannerDenyAll: 'Continuer sans accepter',
     bannerCustomize: 'Personnaliser',
     detailsTitle: 'Personnaliser vos préférences',
@@ -79,7 +79,7 @@ const LABELS: Record<string, WidgetLabels> = {
     bannerTitle: 'We respect your privacy',
     bannerBody:
       'This site uses cookies to improve your experience, measure audience and personalize content. Your choice will be saved and can be changed at any time.',
-    bannerAcceptAll: 'Accept all',
+    bannerAcceptAll: 'Accept and continue',
     bannerDenyAll: 'Continue without accepting',
     bannerCustomize: 'Customize',
     detailsTitle: 'Customize your preferences',
@@ -138,6 +138,7 @@ function escapeHtml(str: string): string {
  *   --mc-primary          Primary button color (default: #111827)
  *   --mc-primary-hover    Primary button hover (default: derived)
  *   --mc-radius           Border radius scale (default: 12px)
+ *   --mc-banner-max-height  Max height of the banner text, scrolls beyond (default: 40vh, 'none' to disable)
  */
 const STYLES = `
   :host {
@@ -156,6 +157,7 @@ const STYLES = `
        so integrators rescale the whole widget with one --mc-font-size. calc(var())
        instead of em avoids compounding through nested elements. */
     --_fs: var(--mc-font-size, 15px);
+    --_banner-max-height: var(--mc-banner-max-height, 40vh);
 
     position: fixed;
     inset: 0;
@@ -212,12 +214,15 @@ const STYLES = `
     max-width: 640px;
     width: calc(100% - 32px);
     max-height: 90vh;
+    /* dvh follows the mobile browser bars, so the footer buttons are never pushed off-screen. */
+    max-height: 90dvh;
     box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     animation: mc-slide-up 0.25s ease;
   }
+  .modal:focus { outline: none; }
 
   .header {
     padding: 20px 24px 16px;
@@ -279,12 +284,54 @@ const STYLES = `
     justify-content: flex-end;
   }
 
+  /* ─── Banner ──────────────────────────────────────────── */
+
+  .header-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  /* Discreet refusal link above the title — the banner has no close button:
+     the user leaves it only by making a choice. */
+  .link-btn {
+    align-self: flex-start;
+    appearance: none;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+    font-size: calc(var(--_fs) * 0.87); /* 13px */
+    color: #6b7280;
+    text-decoration: none;
+  }
+  .link-btn:hover { color: #374151; text-decoration: underline; }
+
+  /* Banner text is capped and scrolls on its own, so the actions stay close to the
+     title instead of being pushed to the bottom of the screen by a long text. */
+  .body-banner {
+    max-height: var(--_banner-max-height);
+    overscroll-behavior: contain;
+  }
+
+  /* Stacked full-width actions, pinned below the scrollable body and lifted by a
+     shadow so the accept button always stays visible. */
+  .footer-stacked {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 10px;
+    border-top: none;
+    box-shadow: 0 -10px 20px -12px rgba(0, 0, 0, 0.15);
+  }
+
   /* ─── Buttons ─────────────────────────────────────────── */
 
   .btn {
     appearance: none;
     border-radius: 999px;
     padding: 9px 18px;
+    font-family: inherit;
     font-size: calc(var(--_fs) * 0.93); /* 14px */
     font-weight: 500;
     border: 1px solid transparent;
@@ -305,6 +352,23 @@ const STYLES = `
     background: var(--_primary-hover);
     border-color: var(--_primary-hover);
   }
+
+  .btn-lg {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 20px;
+    border-radius: calc(var(--_radius) + 2px);
+    font-size: calc(var(--_fs) * 1.07); /* 16px */
+    font-weight: 600;
+  }
+  .btn-lg.btn-primary {
+    box-shadow: 0 8px 20px -6px color-mix(in srgb, var(--_primary) 55%, transparent);
+  }
+  .btn-lg.btn-outline { color: #111827; }
+  .btn-lg svg { width: 1.1em; height: 1.1em; flex-shrink: 0; }
 
   .btn-outline {
     background: #ffffff;
@@ -595,11 +659,14 @@ export class McConsentWidget extends HTMLElement {
       this._previouslyFocused = document.activeElement;
     }
 
-    // Move focus into the modal on the next frame (ensures paint is complete)
-    requestAnimationFrame(() => focusable[0]?.focus());
+    // Move focus onto the dialog itself on the next frame (ensures paint is complete):
+    // no focus ring lands on an action at open, Tab reaches the first button.
+    requestAnimationFrame(() => modal.focus());
 
     this._keydownHandler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // First visit: the user must make a choice, Escape does not dismiss the popup.
+        if (!this._entryAnswered) return;
         e.preventDefault();
         isPanelOpen.set(false);
         return;
@@ -612,7 +679,7 @@ export class McConsentWidget extends HTMLElement {
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
 
-      if (e.shiftKey && active === first) {
+      if (e.shiftKey && (active === first || active === modal)) {
         e.preventDefault();
         last.focus();
       } else if (!e.shiftKey && active === last) {
@@ -741,25 +808,40 @@ export class McConsentWidget extends HTMLElement {
     `;
   }
 
+  /**
+   * Close button — only in a re-customization session. On first visit the popup can
+   * only be left by making a choice (no close button, no Escape, no backdrop click).
+   */
+  private renderCloseButton(): string {
+    if (!this._entryAnswered) return '';
+    return `<button class="close-btn" type="button" aria-label="${escapeHtml(this.labels.close)}" id="mc-close-btn">✕</button>`;
+  }
+
+  private bindCloseButton() {
+    this.shadow
+      .getElementById('mc-close-btn')
+      ?.addEventListener('click', () => isPanelOpen.set(false));
+  }
+
   private renderBanner() {
     const l = this.labels;
 
     this.shadow.innerHTML = `
       <div class="backdrop" role="dialog" aria-modal="true" aria-labelledby="mc-title">
-        <div class="modal">
-          <div class="header">
-            <div>
-              <h2 class="title" id="mc-title"><slot name="title">${escapeHtml(l.bannerTitle)}</slot></h2>
-            </div>
-            <button class="close-btn" type="button" aria-label="${escapeHtml(l.close)}" id="mc-close-btn">✕</button>
+        <div class="modal" tabindex="-1">
+          <div class="header header-banner">
+            <button class="link-btn" type="button" id="mc-deny-all-btn">${escapeHtml(l.bannerDenyAll)}</button>
+            <h2 class="title" id="mc-title"><slot name="title">${escapeHtml(l.bannerTitle)}</slot></h2>
           </div>
-          <div class="body">
+          <div class="body body-banner">
             <slot name="body">${escapeHtml(l.bannerBody)}</slot>
           </div>
-          <div class="footer">
-            <button class="btn btn-ghost" type="button" id="mc-deny-all-btn">${escapeHtml(l.bannerDenyAll)}</button>
-            <button class="btn btn-outline" type="button" id="mc-customize-btn">${escapeHtml(l.bannerCustomize)}</button>
-            <button class="btn btn-primary" type="button" id="mc-accept-all-btn">${escapeHtml(l.bannerAcceptAll)}</button>
+          <div class="footer footer-stacked">
+            <button class="btn btn-primary btn-lg" type="button" id="mc-accept-all-btn">
+              ${escapeHtml(l.bannerAcceptAll)}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+            <button class="btn btn-outline btn-lg" type="button" id="mc-customize-btn">${escapeHtml(l.bannerCustomize)}</button>
           </div>
         </div>
       </div>
@@ -768,9 +850,6 @@ export class McConsentWidget extends HTMLElement {
     this.shadow.getElementById('mc-accept-all-btn')!.addEventListener('click', this.onAcceptAll);
     this.shadow.getElementById('mc-deny-all-btn')!.addEventListener('click', this.onDenyAll);
     this.shadow.getElementById('mc-customize-btn')!.addEventListener('click', this.onCustomize);
-    this.shadow
-      .getElementById('mc-close-btn')!
-      .addEventListener('click', () => isPanelOpen.set(false));
   }
 
   private renderDetails() {
@@ -844,13 +923,13 @@ export class McConsentWidget extends HTMLElement {
 
     this.shadow.innerHTML = `
       <div class="backdrop" role="dialog" aria-modal="true" aria-labelledby="mc-details-title">
-        <div class="modal">
+        <div class="modal" tabindex="-1">
           <div class="header">
             <div>
               <h2 class="title" id="mc-details-title">${escapeHtml(l.detailsTitle)}</h2>
               <p class="subtitle">${escapeHtml(l.detailsSubtitle)}</p>
             </div>
-            <button class="close-btn" type="button" aria-label="${escapeHtml(l.close)}" id="mc-close-btn">✕</button>
+            ${this.renderCloseButton()}
           </div>
           <div class="body">
             <div class="categories">${functionalHtml}${bodyHtml}</div>
@@ -867,9 +946,7 @@ export class McConsentWidget extends HTMLElement {
     this.shadow.getElementById('mc-accept-all-btn')!.addEventListener('click', this.onAcceptAll);
     this.shadow.getElementById('mc-deny-all-btn')!.addEventListener('click', this.onDenyAll);
     this.shadow.getElementById('mc-back-btn')!.addEventListener('click', this.onBackToBanner);
-    this.shadow
-      .getElementById('mc-close-btn')!
-      .addEventListener('click', () => isPanelOpen.set(false));
+    this.bindCloseButton();
 
     this.shadow.querySelectorAll<HTMLButtonElement>('[data-action]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -949,13 +1026,13 @@ export class McConsentWidget extends HTMLElement {
 
     this.shadow.innerHTML = `
       <div class="backdrop" role="dialog" aria-modal="true" aria-labelledby="mc-details-title">
-        <div class="modal">
+        <div class="modal" tabindex="-1">
           <div class="header">
             <div>
               <h2 class="title" id="mc-details-title">${escapeHtml(l.detailsTitle)}</h2>
               <p class="subtitle">${escapeHtml(l.detailsSubtitle)}</p>
             </div>
-            <button class="close-btn" type="button" aria-label="${escapeHtml(l.close)}" id="mc-close-btn">✕</button>
+            ${this.renderCloseButton()}
           </div>
           <div class="body">
             <div class="categories">${functionalHtml}${bodyHtml}</div>
@@ -972,9 +1049,7 @@ export class McConsentWidget extends HTMLElement {
     this.shadow.getElementById('mc-accept-all-btn')!.addEventListener('click', this.onAcceptAll);
     this.shadow.getElementById('mc-deny-all-btn')!.addEventListener('click', this.onDenyAll);
     this.shadow.getElementById('mc-back-btn')!.addEventListener('click', this.onBackToBanner);
-    this.shadow
-      .getElementById('mc-close-btn')!
-      .addEventListener('click', () => isPanelOpen.set(false));
+    this.bindCloseButton();
 
     this.shadow.querySelectorAll<HTMLButtonElement>('[data-cat-action]').forEach(btn => {
       btn.addEventListener('click', () => {

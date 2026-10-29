@@ -70,14 +70,15 @@ Set CSS custom properties on `<mc-consent-widget>` or any ancestor — they pier
 <mc-consent-widget lang="fr" style="--mc-primary: #2563eb; --mc-radius: 16px;"></mc-consent-widget>
 ```
 
-| Variable             | Default          | Description                                       |
-| -------------------- | ---------------- | ------------------------------------------------- |
-| `--mc-primary`       | `#111827`        | Primary button background                         |
-| `--mc-primary-hover` | auto             | Primary hover (auto-derived)                      |
-| `--mc-primary-text`  | `#fff`           | Primary button text                               |
-| `--mc-radius`        | `12px`           | Modal border radius                               |
-| `--mc-font`          | `system-ui, ...` | Font family                                       |
-| `--mc-font-size`     | `15px`           | Type-scale base — every text size derives from it |
+| Variable                 | Default          | Description                                                              |
+| ------------------------ | ---------------- | ------------------------------------------------------------------------ |
+| `--mc-primary`           | `#111827`        | Primary button background                                                |
+| `--mc-primary-hover`     | auto             | Primary hover (auto-derived)                                             |
+| `--mc-primary-text`      | `#fff`           | Primary button text                                                      |
+| `--mc-radius`            | `12px`           | Modal border radius                                                      |
+| `--mc-font`              | `system-ui, ...` | Font family                                                              |
+| `--mc-font-size`         | `15px`           | Type-scale base — every text size derives from it                        |
+| `--mc-banner-max-height` | `40vh`           | Max height of the banner text, scrolls beyond it (`none` to show it all) |
 
 ## Display Modes
 
